@@ -304,14 +304,47 @@ export default function Home() {
 
                 <label className="cursor-pointer border-2 border-dashed border-gray-300 hover:border-sccs-green rounded-lg p-4 flex flex-col items-center justify-center transition-colors bg-white">
                   <Upload className="w-6 h-6 mb-2 text-gray-400" />
-                  <span className="text-xs text-gray-500 font-medium">Clique para enviar comprovante</span>
-                  <input type="file" className="hidden" accept=".pdf,image/*" />
+                  <span className="text-xs text-gray-500 font-medium text-center">Clique para enviar comprovante</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      // Se estivermos em produção (Não nos Mock Dados id=1001)
+                      if (inv.id > 1000) {
+                        alert("Simulação Concluída. No ambiente real, o PDF seria mesclado agora.");
+                        updateInvoiceStatus(inv.id, 'PAGO');
+                        return;
+                      }
+
+                      const formData = new FormData();
+                      formData.append('invoiceId', inv.id.toString());
+                      formData.append('file', file);
+
+                      try {
+                        const res = await fetch('/api/invoices/upload-pix', {
+                          method: 'POST',
+                          body: formData,
+                        });
+
+                        const data = await res.json();
+                        if (data.success) {
+                          // A UI real irá puxar do banco via GET, por hora, vamos simular o update no array local
+                          updateInvoiceStatus(inv.id, 'PAGO');
+                          alert(data.message);
+                        } else {
+                          alert('Erro: ' + data.error);
+                        }
+                      } catch (e) {
+                        console.error(e);
+                        alert('Falha na comunicação com o servidor.');
+                      }
+                    }}
+                  />
                 </label>
-                <button
-                  onClick={() => updateInvoiceStatus(inv.id, 'PAGO')}
-                  className="w-full border-2 border-sccs-green text-sccs-green bg-sccs-green/10 hover:bg-sccs-green hover:text-white py-1.5 rounded text-sm font-semibold transition-colors">
-                  CONFIRMAR ANEXO
-                </button>
               </div>
             ))}
             {invoicesAguardandoPix.length === 0 && (
