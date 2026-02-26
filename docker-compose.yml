@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  sccs-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: sccs-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      # Conexão com o banco do CasaOS
+      - DATABASE_URL=postgresql://casaos:casaos@192.168.15.4:5432/casaos?schema=public
+      # Configurações para scripts Python se necessários (placeholder)
+      - PYTHON_SCRIPTS_PATH=/app/execution
+    volumes:
+      - ./execution:/app/execution

@@ -1,0 +1,33 @@
+name: sccs-web
+services:
+  sccs-web:
+    container_name: sccs-frontend
+    image: sccs_app-sccs-web:latest
+    restart: unless-stopped
+    ports:
+      - target: 3000
+        published: "3001"
+        protocol: tcp
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - DATABASE_URL=postgresql://casaos:casaos@192.168.15.4:5432/casaos?schema=public
+      - PYTHON_SCRIPTS_PATH=/app/execution
+      - NEXT_PUBLIC_API_URL=http://192.168.15.4:3001
+    volumes:
+      - type: bind
+        source: /DATA/AppData/SCCS_App/execution
+        target: /app/execution
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+    - arm
+  main: sccs-web
+  description:
+    en_us: SCCS Financial Module
+  title:
+    en_us: SCCS Web
+  icon: https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/wallet.svg
+  port_map: "3001"
+  index: /

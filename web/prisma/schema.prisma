@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model users {
+  id            Int      @id @default(autoincrement())
+  username      String   @unique @db.VarChar(100)
+  password_hash String   @db.VarChar(255)
+  role          String?  @default("user") @db.VarChar(50)
+  created_at    DateTime @default(now())
+}
+
+model categories {
+  id         Int        @id @default(autoincrement())
+  name       String     @unique @db.VarChar(100)
+  created_at DateTime   @default(now())
+  projects   projects[]
+}
+
+model projects {
+  id          Int         @id @default(autoincrement())
+  category_id Int?
+  termo       String      @db.VarChar(255)
+  created_at  DateTime    @default(now())
+  name        String?     @db.VarChar(255)
+  invoices    invoices[]
+  category    categories? @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@unique([category_id, termo])
+}
+
+model invoices {
+  id               Int       @id @default(autoincrement())
+  project_id       Int?
+  invoice_number   String    @db.VarChar(100)
+  amount           Decimal?  @db.Decimal(15, 2)
+  file_path        String    @db.VarChar(500)
+  status           String?   @default("A_PAGAR") @db.VarChar(50)
+  pix_receipt_path String?   @db.VarChar(500)
+  created_at       DateTime  @default(now())
+  payment_date     DateTime?
+  project          projects? @relation(fields: [project_id], references: [id])
+}

@@ -1,0 +1,215 @@
+{
+    "name": "Processador SCCS Faturas (Robust Filter -> Gemini Fallback)",
+    "nodes": [
+        {
+            "parameters": {
+                "postProcessAction": "nothing",
+                "format": "resolved",
+                "options": {
+                    "allowUnauthorizedCerts": true,
+                    "customEmailProtocol": "imap",
+                    "dataPropertyAttachmentsPrefixName": "attachment_"
+                }
+            },
+            "id": "e2f3d915-1c3f-42ae-b9c1-4b19aa150e7a",
+            "name": "Gmail Trigger (On Message Received)",
+            "type": "n8n-nodes-base.emailReadImap",
+            "typeVersion": 2,
+            "position": [
+                200,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "119adffd-336e-4402-9ae1-b2c58ecbadd0",
+                            "leftValue": "={{ Object.keys($json).filter(key => key.startsWith('attachment_')).length }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "larger"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "e9c60e57-2c1c-4b71-a4fc-2b6fbff373e3",
+            "name": "Filter (Existem Anexos?)",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 3,
+            "position": [
+                420,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "fieldToSplitOut": "={{ Object.keys($json).filter(key => key.startsWith('attachment_')) }}",
+                "include": "allOtherFields",
+                "options": {}
+            },
+            "id": "7bf317a3-e4d0-4bc3-aaca-dcf9c9a7edb7",
+            "name": "Split Out Anexos",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                640,
+                220
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "extract",
+                "binaryPropertyName": "={{ $json.attachment_key }}"
+            },
+            "id": "8472f10b-d2c6-4d2c-80a5-f850e32ef7a2",
+            "name": "Extrair Texto do PDF",
+            "type": "n8n-nodes-base.pdf",
+            "typeVersion": 1,
+            "position": [
+                860,
+                220
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [],
+                    "string": [
+                        {
+                            "value1": "={{ $json.text }}",
+                            "operation": "regex",
+                            "value2": "(?i)Nota Fiscal.*?nº\\s*(\\d+)|Termo\\s*(T\\s*\\d+)"
+                        }
+                    ]
+                }
+            },
+            "id": "switch_node_01",
+            "name": "Filtro Switch (Padrão Conhecido?)",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [
+                1080,
+                220
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://192.168.15.4:3000/api/webhook/process-invoice-parsed",
+                "sendBody": true,
+                "contentType": "raw",
+                "rawContentType": "application/json",
+                "body": "={\n  \"text_content\": \"{{ $json.text }}\",\n  \"is_parsed\": true,\n  \"pdf_path\": \"/downloads/fatura_{{ $now.toFormat('yyyyMMddHHmmss') }}.pdf\"\n}",
+                "options": {}
+            },
+            "id": "205a968a-211c-4b35-85d1-949e2115e45a",
+            "name": "Envia p/ Painel SCCS (Padrão Determinístico)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1380,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://192.168.15.4:3000/api/webhook/process-invoice",
+                "sendBody": true,
+                "contentType": "raw",
+                "rawContentType": "application/json",
+                "body": "={\n  \"text_content\": \"{{ $json.text }}\",\n  \"fallback_gemini\": true,\n  \"pdf_path\": \"/downloads/fatura_{{ $now.toFormat('yyyyMMddHHmmss') }}.pdf\"\n}",
+                "options": {}
+            },
+            "id": "9cf1722e-dd18-47ec-a4da-27ddaf79dceb",
+            "name": "Envia p/ Painel (Fallback Gemini)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1380,
+                340
+            ]
+        }
+    ],
+    "pinData": {},
+    "connections": {
+        "Gmail Trigger (On Message Received)": {
+            "main": [
+                [
+                    {
+                        "node": "Filter (Existem Anexos?)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filter (Existem Anexos?)": {
+            "main": [
+                [
+                    {
+                        "node": "Split Out Anexos",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split Out Anexos": {
+            "main": [
+                [
+                    {
+                        "node": "Extrair Texto do PDF",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extrair Texto do PDF": {
+            "main": [
+                [
+                    {
+                        "node": "Filtro Switch (Padrão Conhecido?)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Filtro Switch (Padrão Conhecido?)": {
+            "main": [
+                [
+                    {
+                        "node": "Envia p/ Painel SCCS (Padrão Determinístico)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Envia p/ Painel (Fallback Gemini)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {},
+    "versionId": "f96f00e9-ea21-424a-9c7a-dbe8cb95bca3",
+    "id": "C5s80oZzG828kH4I",
+    "tags": []
+}
