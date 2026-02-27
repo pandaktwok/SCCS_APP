@@ -16,7 +16,7 @@ export async function middleware(request: NextRequest) {
         if (!isLoginPage && !isApiRoute) {
             return NextResponse.redirect(new URL('/login', request.url));
         }
-        if (isApiRoute && request.nextUrl.pathname !== '/api/auth/login') {
+        if (isApiRoute && request.nextUrl.pathname !== '/api/auth/login' && request.nextUrl.pathname !== '/api/users/init') {
             return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
         }
     } else {
