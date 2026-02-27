@@ -31,29 +31,39 @@ type Invoice = {
 };
 
 export default function Home() {
-  const [categories, setCategories] = useState<Category[]>([
-    { id: 1, name: "Ativos" },
-    { id: 99, name: "Sem Termo" }
-  ]);
-  const [projects, setProjects] = useState<Project[]>([
-    { id: 101, category_id: 1, termo: "T 3200", name: "Projeto Saúde Digital" },
-    { id: 102, category_id: 1, termo: "T 1502", name: "Projeto Educação" },
-    { id: 103, category_id: 1, termo: "T 8841", name: "Projeto Esportes" },
-    { id: 104, category_id: 99, termo: "T 0000", name: "Aguardando Termo" }
-  ]);
-  const [invoices, setInvoices] = useState<Invoice[]>([
-    { id: 1001, project_id: 101, invoice_number: "NF-100", amount: "1500.50", file_path: "/dummy1.pdf", status: "A_PAGAR", pix_receipt_path: null, created_at: new Date().toISOString(), project: { termo: "T 3200" } },
-    { id: 1002, project_id: 102, invoice_number: "NF-101", amount: "3200.00", file_path: "/dummy2.pdf", status: "A_PAGAR", pix_receipt_path: null, created_at: new Date().toISOString(), project: { termo: "T 1502" } },
-    { id: 1003, project_id: 104, invoice_number: "NF-999", amount: "485.90", file_path: "/dummy3.pdf", status: "A_PAGAR", pix_receipt_path: null, created_at: new Date().toISOString(), project: { termo: "T 0000" } },
-    { id: 1004, project_id: 104, invoice_number: "NF-888", amount: "150.00", file_path: "/dummy4.pdf", status: "A_PAGAR", pix_receipt_path: null, created_at: new Date().toISOString(), project: { termo: "T 0000" } }
-  ]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [projectDisplayMode, setProjectDisplayMode] = useState<'termo' | 'nome' | 'tudo'>('termo');
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [catsRes, projRes, invRes] = await Promise.all([
+        fetch('/api/categories'),
+        fetch('/api/projects'),
+        fetch('/api/invoices')
+      ]);
+
+      if (catsRes.ok && projRes.ok && invRes.ok) {
+        const cats = await catsRes.json();
+        const projs = await projRes.json();
+        const invs = await invRes.json();
+
+        setCategories(cats);
+        setProjects(projs);
+        setInvoices(invs);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar os dados:", error);
+    }
+  };
 
   if (!isMounted) return null;
 
@@ -62,13 +72,39 @@ export default function Home() {
   };
 
   const updateInvoiceStatus = async (id: number, status: string) => {
+    // Optimistic UI Update first
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
+
+    // Call the actual backend update route
+    try {
+      await fetch(`/api/invoices/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      // In a perfect world we re-fetch to sync, but optimistic is visually faster.
+    } catch (e) {
+      console.error("Falha ao salvar mudança de status no banco", e);
+      fetchData(); // Rollback if it failed
+    }
   };
 
-  const updateInvoiceProject = (id: number, newProjectId: number) => {
+  const updateInvoiceProject = async (id: number, newProjectId: number) => {
     const proj = projects.find(p => p.id === newProjectId);
-    if (proj) {
-      setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, project_id: proj.id, project: { termo: proj.termo } } : inv));
+    if (!proj) return;
+
+    // UI Optimistic
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, project_id: proj.id, project: { termo: proj.termo } } : inv));
+
+    try {
+      await fetch(`/api/invoices/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: newProjectId })
+      });
+    } catch (e) {
+      console.error("Falha ao atualizar o termo da nota:", e);
+      fetchData();
     }
   };
 
@@ -107,6 +143,40 @@ export default function Home() {
   };
 
   const groupedPagos = groupInvoicesByDate(invoicesPagos);
+
+  // Ações de Botões (Nuven Nextcloud via Proxy Local)
+  const handlePdfAction = (filePath: string, action: 'view' | 'download' | 'print') => {
+    if (!filePath) {
+      alert("Arquivo não encontrado!");
+      return;
+    }
+
+    const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}`;
+
+    if (action === 'download') {
+      // Força o download criando um link temporário
+      const a = document.createElement('a');
+      a.href = proxyUrl;
+      // o nome do arquivo virá do header do servidor (Content-Disposition)
+      a.setAttribute('download', '');
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } else if (action === 'view') {
+      // Abre em nova guia para visualizar
+      window.open(proxyUrl, '_blank');
+    } else if (action === 'print') {
+      // Abre um iframe oculto para imprimir sem trocar de tela
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = proxyUrl;
+      document.body.appendChild(iframe);
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+        setTimeout(() => iframe.remove(), 5000);
+      };
+    }
+  };
 
   return (
     <div className="flex h-[calc(100vh-6rem)] gap-4 w-full">
@@ -157,42 +227,54 @@ export default function Home() {
           </div>
         </div>
 
-        {categories.map(cat => (
-          <div key={cat.id} className="flex flex-col gap-2">
-            <h3 className={`text-xs font-semibold uppercase tracking-wider px-2 mt-2 text-center ${cat.name === 'Sem Termo' ? 'text-sccs-red' : 'text-gray-400'}`}>
-              {cat.name}
-            </h3>
-            {projects.filter(p => p.category_id === cat.id).map(p => {
+        {categories.map(cat => {
+          // Filtragem Inteligente para não mostrar NADA do Sem Termo se não houver notas orfãs lá.
+          const catProjects = projects.filter(p => p.category_id === cat.id);
 
-              let displayText = p.termo;
-              let tooltipText = p.name || '';
+          if (cat.name === 'Sem Termo') {
+            const hasOrphanInvoices = invoices.some(inv => inv.project?.termo === 'T 0000' && inv.status !== 'ARQUIVADO');
+            if (!hasOrphanInvoices) return null; // Esconde a aba inteira vermelha se estiver tudo organizado
+          }
 
-              if (projectDisplayMode === 'nome') {
-                displayText = p.name || p.termo;
-                tooltipText = p.termo;
-              } else if (projectDisplayMode === 'tudo') {
-                displayText = `${p.termo} ${p.name || ''}`;
-                tooltipText = '';
-              }
+          if (catProjects.length === 0) return null; // Não renderiza categorias vazias em geral
 
-              const isSemTermo = p.termo === 'T 0000';
+          return (
+            <div key={cat.id} className="flex flex-col gap-2">
+              <h3 className={`text-xs font-semibold uppercase tracking-wider px-2 mt-2 text-center ${cat.name === 'Sem Termo' ? 'text-sccs-red' : 'text-gray-400'}`}>
+                {cat.name}
+              </h3>
+              {catProjects.map(p => {
 
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => handleProjectSelect(p.id)}
-                  title={tooltipText}
-                  className={`text-center rounded-md py-2 px-4 shadow-sm transition-colors border text-sm truncate 
+                let displayText = p.termo;
+                let tooltipText = p.name || '';
+
+                if (projectDisplayMode === 'nome') {
+                  displayText = p.name || p.termo;
+                  tooltipText = p.termo;
+                } else if (projectDisplayMode === 'tudo') {
+                  displayText = `${p.termo} ${p.name || ''}`;
+                  tooltipText = '';
+                }
+
+                const isSemTermo = p.termo === 'T 0000';
+
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => handleProjectSelect(p.id)}
+                    title={tooltipText}
+                    className={`text-center rounded-md py-2 px-4 shadow-sm transition-colors border text-sm truncate 
                     ${selectedProjectId === p.id
-                      ? (isSemTermo ? 'bg-sccs-red text-white border-transparent bg-opacity-80' : 'bg-sccs-green text-white border-transparent')
-                      : (isSemTermo ? 'bg-red-500/10 text-red-500 hover:bg-sccs-red hover:text-white border-red-500/30 animate-pulse' : 'bg-white/5 hover:bg-sccs-green text-white border-transparent')}`}
-                >
-                  {displayText}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+                        ? (isSemTermo ? 'bg-sccs-red text-white border-transparent bg-opacity-80' : 'bg-sccs-green text-white border-transparent')
+                        : (isSemTermo ? 'bg-red-500/10 text-red-500 hover:bg-sccs-red hover:text-white border-red-500/30 animate-pulse' : 'bg-white/5 hover:bg-sccs-green text-white border-transparent')}`}
+                  >
+                    {displayText}
+                  </button>
+                );
+              })}
+            </div>
+          )
+        })}
 
         {/* User / Logout */}
         <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
@@ -231,7 +313,7 @@ export default function Home() {
                 <div key={inv.id} className={`p-3 rounded-lg border flex flex-col gap-2 hover:shadow-md transition-shadow relative group ${isSemTermo ? 'bg-red-50 border-red-200' : 'bg-sccs-gray border-sccs-border'}`}>
                   {/* Ações (Olho e Lixeira) no canto superior direito invisíveis até passar o mouse */}
                   <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota">
+                    <button onClick={() => handlePdfAction(inv.file_path, 'view')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota">
                       <Eye className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => { if (window.confirm('Tem certeza que deseja deletar esta nota?')) alert('Deletar nota simulado'); }} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
@@ -286,8 +368,8 @@ export default function Home() {
           <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
             {invoicesAguardandoPix.map((inv) => (
               <div key={inv.id} className="bg-sccs-gray p-3 rounded-lg border border-sccs-border flex flex-col gap-3 hover:shadow-md transition-shadow relative group">
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota">
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <button onClick={() => handlePdfAction(inv.file_path, 'view')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota">
                     <Eye className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => { if (window.confirm('Tem certeza que deseja deletar esta nota?')) alert('Deletar nota simulado'); }} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
@@ -313,12 +395,8 @@ export default function Home() {
                       const file = e.target.files?.[0];
                       if (!file) return;
 
-                      // Se estivermos em produção (Não nos Mock Dados id=1001)
-                      if (inv.id > 1000) {
-                        alert("Simulação Concluída. No ambiente real, o PDF seria mesclado agora.");
-                        updateInvoiceStatus(inv.id, 'PAGO');
-                        return;
-                      }
+                      // Apenas garantindo o upload diretamente para a nova API
+                      if (!inv.id) return;
 
                       const formData = new FormData();
                       formData.append('invoiceId', inv.id.toString());
@@ -374,17 +452,17 @@ export default function Home() {
 
                 {group.invoices.map((inv) => (
                   <div key={inv.id} className="bg-sccs-gray p-3 rounded-lg border border-sccs-border flex flex-col gap-2 hover:shadow-md transition-shadow relative group">
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota">
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <button onClick={() => handlePdfAction(inv.file_path, 'view')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota Embutida">
                         <Eye className="w-3.5 h-3.5" />
                       </button>
-                      <button className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Baixar PDF Mesclado">
+                      <button onClick={() => handlePdfAction(inv.file_path, 'download')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Baixar Arquivo PDF Completo">
                         <Download className="w-3.5 h-3.5" />
                       </button>
-                      <button className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Imprimir">
+                      <button onClick={() => handlePdfAction(inv.file_path, 'print')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Imprimir">
                         <Printer className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => updateInvoiceStatus(inv.id, 'ARQUIVADO')} className="bg-white border border-gray-200 hover:bg-green-50 text-sccs-green p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm ml-1" title="Remover da lista">
+                      <button onClick={() => updateInvoiceStatus(inv.id, 'ARQUIVADO')} className="bg-white border border-gray-200 hover:bg-green-50 text-sccs-green p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm ml-1" title="Arquivar / Remover da Tela">
                         <CheckCircle className="w-3.5 h-3.5" />
                       </button>
                     </div>

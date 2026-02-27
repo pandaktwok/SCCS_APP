@@ -61,6 +61,35 @@ export default function Historico() {
         return true;
     });
 
+    const handlePdfAction = (filePath: string, action: 'view' | 'download' | 'print') => {
+        if (!filePath) {
+            alert("Arquivo não encontrado!");
+            return;
+        }
+
+        const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}`;
+
+        if (action === 'download') {
+            const a = document.createElement('a');
+            a.href = proxyUrl;
+            a.setAttribute('download', '');
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } else if (action === 'view') {
+            window.open(proxyUrl, '_blank');
+        } else if (action === 'print') {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = proxyUrl;
+            document.body.appendChild(iframe);
+            iframe.onload = () => {
+                iframe.contentWindow?.print();
+                setTimeout(() => iframe.remove(), 5000);
+            };
+        }
+    };
+
     return (
         <div className="flex h-[calc(100vh-6rem)] gap-4 w-full">
             {/* Sidebar: Filtros de Data */}
@@ -218,13 +247,13 @@ export default function Historico() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <button className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-2.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Documento">
+                                <button onClick={() => handlePdfAction(inv.file_path, 'view')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-2.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Documento">
                                     <Eye className="w-5 h-5" />
                                 </button>
-                                <button className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-2.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Baixar PDF Mesclado">
+                                <button onClick={() => handlePdfAction(inv.file_path, 'download')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-2.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Baixar Arquivo via NextCloud">
                                     <Download className="w-5 h-5" />
                                 </button>
-                                <button className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-2.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Imprimir">
+                                <button onClick={() => handlePdfAction(inv.file_path, 'print')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-2.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Imprimir">
                                     <Printer className="w-5 h-5" />
                                 </button>
                                 <button onClick={() => { if (window.confirm('Tem certeza que deseja deletar este registro de histórico?')) alert('Deletar histórico simulado'); }} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-2.5 rounded-md flex items-center justify-center transition-colors shadow-sm ml-2" title="Deletar Registro">

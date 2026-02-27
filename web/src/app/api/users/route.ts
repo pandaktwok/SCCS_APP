@@ -1,42 +1,51 @@
-import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
+// Lista Usuários
 export async function GET() {
     try {
         const users = await prisma.users.findMany({
-            select: { id: true, username: true, role: true, created_at: true },
-            orderBy: { username: 'asc' }
+            select: {
+                id: true,
+                username: true,
+                role: true,
+                created_at: true,
+            },
+            orderBy: { created_at: 'asc' }
         });
         return NextResponse.json(users);
-    } catch (error) {
-        return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+    } catch (error: any) {
+        return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
     }
 }
 
-export async function POST(req: Request) {
+// Cria Novo Usuário
+export async function POST(request: Request) {
     try {
-        const body = await req.json();
-        const { username, password } = body;
+        const { username, password, role } = await request.json();
 
         if (!username || !password) {
-            return NextResponse.json({ error: "Username and Password are required" }, { status: 400 });
+            return NextResponse.json({ error: 'Usuário e senha são obrigatórios.' }, { status: 400 });
         }
 
-        // Note: In a real app, hash the password using bcrypt here.
-        // For this local MVP scope, storing as-is or simple hash placeholder based on schema definition.
-        const user = await prisma.users.create({
+        const existingUser = await prisma.users.findUnique({ where: { username } });
+        if (existingUser) {
+            return NextResponse.json({ error: 'Usuário já existe.' }, { status: 400 });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await prisma.users.create({
             data: {
                 username,
-                password_hash: password
-            },
-            select: { id: true, username: true, role: true } // Don't return password hash
+                password_hash: hashedPassword,
+                role: role || 'user',
+            }
         });
 
-        return NextResponse.json(user, { status: 201 });
+        return NextResponse.json({ success: true, user: { id: newUser.id, username: newUser.username } });
     } catch (error: any) {
-        if (error.code === 'P2002') {
-            return NextResponse.json({ error: "User already exists" }, { status: 409 });
-        }
-        return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+        return NextResponse.json({ error: 'Falha ao criar usuário.' }, { status: 500 });
     }
 }

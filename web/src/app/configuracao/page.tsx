@@ -7,16 +7,21 @@ type Tab = "projetos" | "usuarios" | "historico" | "avancadas";
 
 type Category = { id: number; name: string };
 type Project = { id: number; category_id: number; termo: string; name: string | null; category?: Category };
+type User = { id: number; username: string; role: string };
 
 export default function Configuracao() {
     const [activeTab, setActiveTab] = useState<Tab>("projetos");
     const [categories, setCategories] = useState<Category[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
 
     const [newCategoryName, setNewCategoryName] = useState("");
     const [newProjectTermo, setNewProjectTermo] = useState("");
     const [newProjectName, setNewProjectName] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("");
+
+    const [newUsername, setNewUsername] = useState("");
+    const [newPassword, setNewPassword] = useState("");
 
     // Arquivos Historico
     const [isCombinedUpload, setIsCombinedUpload] = useState(false);
@@ -37,15 +42,18 @@ export default function Configuracao() {
 
     const fetchData = async () => {
         try {
-            const [catRes, projRes] = await Promise.all([
+            const [catRes, projRes, userRes] = await Promise.all([
                 fetch('/api/categories'),
-                fetch('/api/projects')
+                fetch('/api/projects'),
+                fetch('/api/users')
             ]);
             const catData = await catRes.json();
             const projData = await projRes.json();
+            const userData = await userRes.json();
 
             setCategories(catData);
             setProjects(projData);
+            setUsers(Array.isArray(userData) ? userData : []);
 
             if (catData.length > 0 && !selectedCategory) {
                 setSelectedCategory(catData[0].id.toString());
@@ -53,6 +61,26 @@ export default function Configuracao() {
         } catch (error) {
             console.error("Failed to fetch data:", error);
         }
+    };
+
+    const handleCreateUser = async () => {
+        if (!newUsername || !newPassword) return;
+        await fetch('/api/users', {
+            method: 'POST',
+            body: JSON.stringify({ username: newUsername, password: newPassword })
+        });
+        setNewUsername("");
+        setNewPassword("");
+        alert("Usuário Criado!");
+        fetchData();
+    };
+
+    const handleDeleteUser = async (id: number) => {
+        if (!window.confirm("Tem certeza que deseja deletar este usuário?")) return;
+        const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.error) alert(data.error);
+        fetchData();
     };
 
     const handleCreateCategory = async () => {
@@ -113,6 +141,35 @@ export default function Configuracao() {
         setErrorMessage("");
     };
 
+
+    const handlePdfAction = (filePath: string, action: 'view' | 'download' | 'print') => {
+        if (!filePath) {
+            alert("Arquivo não encontrado!");
+            return;
+        }
+
+        const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}`;
+
+        if (action === 'download') {
+            const a = document.createElement('a');
+            a.href = proxyUrl;
+            a.setAttribute('download', '');
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } else if (action === 'view') {
+            window.open(proxyUrl, '_blank');
+        } else if (action === 'print') {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = proxyUrl;
+            document.body.appendChild(iframe);
+            iframe.onload = () => {
+                iframe.contentWindow?.print();
+                setTimeout(() => iframe.remove(), 5000);
+            };
+        }
+    };
 
     return (
         <div className="flex h-[calc(100vh-6rem)] gap-4 w-full">
@@ -379,6 +436,8 @@ export default function Configuracao() {
                                             type="text"
                                             className="w-full bg-white border border-sccs-border rounded-md px-3 py-2 text-sm text-sccs-dark placeholder-gray-400 focus:outline-none focus:border-sccs-green focus:ring-1 focus:ring-sccs-green transition-all"
                                             placeholder="Nome de Usuário"
+                                            value={newUsername}
+                                            onChange={(e) => setNewUsername(e.target.value)}
                                         />
                                     </div>
                                     <div className="w-full">
@@ -387,9 +446,11 @@ export default function Configuracao() {
                                             type="password"
                                             className="w-full bg-white border border-sccs-border rounded-md px-3 py-2 text-sm text-sccs-dark placeholder-gray-400 focus:outline-none focus:border-sccs-green focus:ring-1 focus:ring-sccs-green transition-all"
                                             placeholder="••••••••"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
                                         />
                                     </div>
-                                    <button className="w-full bg-sccs-green hover:bg-[#0e8a80] text-white font-bold py-2 rounded-md shadow-sm transition-colors flex items-center justify-center gap-2 text-sm mt-2">
+                                    <button onClick={handleCreateUser} className="w-full bg-sccs-green hover:bg-[#0e8a80] text-white font-bold py-2 rounded-md shadow-sm transition-colors flex items-center justify-center gap-2 text-sm mt-2">
                                         <Plus className="w-4 h-4" /> CADASTRAR USUÁRIO
                                     </button>
                                 </div>
@@ -408,30 +469,26 @@ export default function Configuracao() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
-                                                <td className="px-4 py-3 font-semibold flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-[10px]">TS</div>
-                                                    Tainara Silva
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex justify-center gap-3">
-                                                        <button className="text-gray-400 hover:text-sccs-green transition-colors" title="Alterar"><Edit2 className="w-4 h-4" /></button>
-                                                        <button onClick={() => { if (window.confirm('Tem certeza que deseja deletar este usuário?')) alert('Deletar usuário simulado'); }} className="text-gray-400 hover:text-sccs-red transition-colors" title="Deletar"><Trash2 className="w-4 h-4" /></button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
-                                                <td className="px-4 py-3 font-semibold flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-sccs-dark text-white flex items-center justify-center font-bold text-[10px]">AD</div>
-                                                    Administrador
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex justify-center gap-3">
-                                                        <button className="text-gray-400 hover:text-sccs-green transition-colors" title="Alterar"><Edit2 className="w-4 h-4" /></button>
-                                                        <button onClick={() => { if (window.confirm('Tem certeza que deseja deletar este usuário?')) alert('Deletar usuário simulado'); }} className="text-gray-400 hover:text-sccs-red transition-colors" title="Deletar"><Trash2 className="w-4 h-4" /></button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                            {users.map((u) => (
+                                                <tr key={u.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
+                                                    <td className="px-4 py-3 font-semibold flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-[10px]">
+                                                            {u.username.substring(0, 2).toUpperCase()}
+                                                        </div>
+                                                        {u.username}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex justify-center gap-3">
+                                                            <button onClick={() => handleDeleteUser(u.id)} className="text-gray-400 hover:text-sccs-red transition-colors" title="Deletar"><Trash2 className="w-4 h-4" /></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {users.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={2} className="text-center py-4 text-gray-400">Nenhum usuário cadastrado.</td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>

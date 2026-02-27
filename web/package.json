@@ -9,14 +9,18 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.1.3",
     "lucide-react": "^0.575.0",
     "next": "14.2.35",
     "pdf-lib": "^1.17.1",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "webdav": "^5.9.0"
   },
   "devDependencies": {
     "@prisma/client": "^5.22.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
