@@ -35,7 +35,7 @@ export async function POST(request: Request) {
             name: 'sccs_auth_token',
             value: token,
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: false, // Permitir HTTP em redes locais e CasaOS
             sameSite: 'lax',
             path: '/',
             maxAge: 60 * 60 * 24 // 1 day
