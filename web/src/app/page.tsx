@@ -73,6 +73,11 @@ export default function Home() {
     setSelectedProjectId(projectId === selectedProjectId ? null : projectId);
   };
 
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  };
+
   const updateInvoiceStatus = async (id: number, status: string) => {
     // Optimistic UI Update first
     setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
@@ -194,6 +199,21 @@ export default function Home() {
     }
   };
 
+  const handleDownloadAll = async () => {
+    const allFilesToDownload = groupedPagos.flatMap(g => g.invoices.filter(i => i.file_path));
+    if (allFilesToDownload.length === 0) {
+      alert("Nenhum arquivo para baixar.");
+      return;
+    }
+
+    // Create downloads sequentially with a small delay to avoid browser popup blocks for multiple rapid downloads
+    for (let i = 0; i < allFilesToDownload.length; i++) {
+      setTimeout(() => {
+        handlePdfAction(allFilesToDownload[i].file_path, 'download');
+      }, i * 500);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-6rem)] gap-4 w-full">
       {/* Coluna 1: Projetos */}
@@ -303,9 +323,9 @@ export default function Home() {
               <span className="text-[10px] text-gray-400 capitalize">{currentUser?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
             </div>
           </div>
-          <a href="/login" className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
+          <button onClick={handleLogout} className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
             <LogOut className="w-4 h-4" />
-          </a>
+          </button>
         </div>
       </aside>
 
@@ -331,6 +351,12 @@ export default function Home() {
                   <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <button onClick={() => handlePdfAction(inv.file_path, 'view')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota">
                       <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handlePdfAction(inv.file_path, 'download')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Baixar Arquivo">
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handlePdfAction(inv.file_path, 'print')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Imprimir Nota">
+                      <Printer className="w-3.5 h-3.5" />
                     </button>
                     {(currentUser?.role === 'admin') && (
                       <button onClick={() => handleDeleteInvoice(inv.id)} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
@@ -453,9 +479,9 @@ export default function Home() {
         <section className="bg-white rounded-lg p-4 border border-sccs-border shadow-sm flex flex-col overflow-hidden">
           <div className="flex justify-between items-center pb-2 border-b border-sccs-border mb-4">
             <h2 className="text-lg font-bold text-sccs-dark">
-              DOWNLOAD
+              NF + PIX
             </h2>
-            <button className="bg-sccs-green hover:bg-[#0e8a80] text-white p-1.5 rounded flex items-center justify-center transition-colors shadow-sm" title="Baixar Todos">
+            <button onClick={handleDownloadAll} className="bg-sccs-green hover:bg-[#0e8a80] text-white p-1.5 rounded flex items-center justify-center transition-colors shadow-sm" title="Baixar Todos">
               <Download className="w-4 h-4" />
             </button>
           </div>

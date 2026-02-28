@@ -5,6 +5,20 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     try {
         const id = parseInt(params.id);
 
+        const invoice = await prisma.invoices.findUnique({
+            where: { id }
+        });
+
+        if (invoice && invoice.file_path.startsWith('[NEXTCLOUD]')) {
+            const nextcloudPath = invoice.file_path.replace('[NEXTCLOUD]', '');
+            const { webdavClient } = require('@/lib/webdav');
+            try {
+                await webdavClient.deleteFile(nextcloudPath);
+            } catch (err: any) {
+                console.warn("Não foi possível apagar arquivo no nextcloud:", err.message);
+            }
+        }
+
         await prisma.invoices.delete({
             where: { id }
         });

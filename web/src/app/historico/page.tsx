@@ -66,6 +66,11 @@ export default function Historico() {
         return true;
     });
 
+    const handleLogout = async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/login';
+    };
+
     const handlePdfAction = (filePath: string, action: 'view' | 'download' | 'print') => {
         if (!filePath) {
             alert("Arquivo não encontrado!");
@@ -212,9 +217,9 @@ export default function Historico() {
                             <span className="text-[10px] text-gray-400 capitalize">{currentUser?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
                         </div>
                     </div>
-                    <a href="/login" className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
+                    <button onClick={handleLogout} className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
                         <LogOut className="w-4 h-4" />
-                    </a>
+                    </button>
                 </div>
             </aside>
 

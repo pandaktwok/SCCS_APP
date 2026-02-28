@@ -18,7 +18,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
         return NextResponse.json({ success: true });
     } catch (error: any) {
         if (error.code === 'P2003') {
-            return NextResponse.json({ error: "Não é possível deletar este projeto pois existem notas vinculadas a ele." }, { status: 409 });
+            return NextResponse.json({ error: "Termo sendo usado" }, { status: 409 });
         }
         return NextResponse.json({ error: "Failed to delete project" }, { status: 500 });
     }

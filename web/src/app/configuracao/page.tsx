@@ -55,11 +55,12 @@ export default function Configuracao() {
 
     const fetchData = async () => {
         try {
-            const [catRes, projRes, userRes, settingsRes] = await Promise.all([
+            const [catRes, projRes, userRes, settingsRes, meRes] = await Promise.all([
                 fetch('/api/categories'),
                 fetch('/api/projects'),
                 fetch('/api/users'),
-                fetch('/api/settings')
+                fetch('/api/settings'),
+                fetch('/api/auth/me')
             ]);
             const catData = await catRes.json();
             const projData = await projRes.json();
@@ -72,9 +73,8 @@ export default function Configuracao() {
             if (settingsData && settingsData.companyName) {
                 setCompanyName(settingsData.companyName);
             }
-
-            if (catData.length > 0 && !selectedCategory) {
-                setSelectedCategory(catData[0].id.toString());
+            if (meRes.ok) {
+                setCurrentUser(await meRes.json());
             }
         } catch (error) {
             console.error("Failed to fetch data:", error);
@@ -112,7 +112,10 @@ export default function Configuracao() {
     };
 
     const handleCreateProject = async () => {
-        if (!newProjectTermo || !selectedCategory) return;
+        if (!newProjectTermo || !newProjectName || !selectedCategory) {
+            alert("A seleção da Categoria, preenchimento do Termo e do Nome são obrigatórios.");
+            return;
+        }
         await fetch('/api/projects', {
             method: 'POST',
             body: JSON.stringify({ category_id: selectedCategory, termo: newProjectTermo, name: newProjectName })
@@ -263,6 +266,11 @@ export default function Configuracao() {
         }
     };
 
+    const handleLogout = async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/login';
+    };
+
     const handlePdfAction = (filePath: string, action: 'view' | 'download' | 'print') => {
         if (!filePath) {
             alert("Arquivo não encontrado!");
@@ -354,9 +362,9 @@ export default function Configuracao() {
                             <span className="text-[10px] text-gray-400 capitalize">{currentUser?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
                         </div>
                     </div>
-                    <a href="/login" className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
+                    <button onClick={handleLogout} className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
                         <LogOut className="w-4 h-4" />
-                    </a>
+                    </button>
                 </div>
             </aside>
 
@@ -384,6 +392,7 @@ export default function Configuracao() {
                                                 value={selectedCategory}
                                                 onChange={e => setSelectedCategory(e.target.value)}
                                             >
+                                                <option value="" disabled>SELECIONE A CATEGORIA...</option>
                                                 {categories.map(c => (
                                                     <option key={c.id} value={c.id.toString()}>{c.name}</option>
                                                 ))}
@@ -435,7 +444,7 @@ export default function Configuracao() {
                                         </thead>
                                         <tbody>
                                             {projects.map((p) => {
-                                                const isProtected = p.termo === 'T 0000';
+                                                const isProtected = p.termo === 'T 000' || p.termo === 'T 0000';
                                                 return (
                                                     <tr key={p.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
                                                         <td className="px-4 py-3 font-semibold">{p.termo}</td>
@@ -449,9 +458,6 @@ export default function Configuracao() {
                                                             <div className="flex justify-center gap-3">
                                                                 {!isProtected ? (
                                                                     <>
-                                                                        <button onClick={() => handleEditProject(p)} className="text-gray-400 hover:text-sccs-green transition-colors" title="Alterar">
-                                                                            <Edit2 className="w-4 h-4" />
-                                                                        </button>
                                                                         <button
                                                                             onClick={() => handleDeleteProject(p.id)}
                                                                             className="text-gray-400 hover:text-sccs-red transition-colors"
@@ -527,9 +533,6 @@ export default function Configuracao() {
                                                             <div className="flex justify-center gap-3">
                                                                 {!isProtected ? (
                                                                     <>
-                                                                        <button onClick={() => handleEditCategory(c)} className="text-gray-400 hover:text-sccs-green transition-colors" title="Alterar">
-                                                                            <Edit2 className="w-4 h-4" />
-                                                                        </button>
                                                                         <button
                                                                             onClick={() => handleDeleteCategory(c.id)}
                                                                             className="text-gray-400 hover:text-sccs-red transition-colors"

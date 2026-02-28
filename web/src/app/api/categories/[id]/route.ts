@@ -18,7 +18,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
         return NextResponse.json({ success: true });
     } catch (error: any) {
         if (error.code === 'P2003') {
-            return NextResponse.json({ error: "Não é possível deletar esta categoria pois existem projetos vinculados a ela." }, { status: 409 });
+            return NextResponse.json({ error: "Categoria em uso" }, { status: 409 });
         }
         return NextResponse.json({ error: "Failed to delete category" }, { status: 500 });
     }
