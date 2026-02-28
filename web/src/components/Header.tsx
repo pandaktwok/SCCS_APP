@@ -32,15 +32,15 @@ export default async function Header() {
 
             <div className="flex items-center gap-8">
                 <nav className="hidden md:flex items-center gap-8 text-sm font-semibold tracking-wider text-sccs-dark dark:text-slate-300">
-                    <Link href="/" className="hover:text-sccs-green dark:hover:text-sccs-green transition-colors">
+                    <a href="/" className="hover:text-sccs-green dark:hover:text-sccs-green transition-colors">
                         INÍCIO
-                    </Link>
-                    <Link href="/historico" className="hover:text-sccs-green transition-colors">
+                    </a>
+                    <a href="/historico" className="hover:text-sccs-green transition-colors">
                         HISTÓRICO
-                    </Link>
-                    <Link href="/configuracao" className="hover:text-sccs-green transition-colors">
+                    </a>
+                    <a href="/configuracao" className="hover:text-sccs-green transition-colors">
                         CONFIGURAÇÃO
-                    </Link>
+                    </a>
                 </nav>
             </div>
         </header>
