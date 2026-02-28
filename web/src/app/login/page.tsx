@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Login() {
@@ -8,7 +8,17 @@ export default function Login() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const router = useRouter();
+
+    useEffect(() => {
+        fetch('/api/settings')
+            .then(res => res.json())
+            .then(data => {
+                if (data.logoUrl) setLogoUrl(data.logoUrl);
+            })
+            .catch(() => { });
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -39,8 +49,12 @@ export default function Login() {
     return (
         <div className="flex items-center justify-center h-[calc(100vh-6rem)]">
             <div className="bg-white border border-sccs-border p-8 rounded shadow-lg w-full max-w-sm flex flex-col items-center">
-                <div className="w-20 h-20 bg-sccs-gray rounded-full flex items-center justify-center mb-6 border border-sccs-border shadow-inner">
-                    <span className="text-sccs-green font-bold text-xs text-center">SCCS<br />LOGIN</span>
+                <div className="w-20 h-20 bg-sccs-gray rounded-full flex items-center justify-center mb-6 border border-sccs-border shadow-inner overflow-hidden flex-shrink-0 p-2">
+                    {logoUrl ? (
+                        <img src={logoUrl} alt="Logo SCCS" className="w-full h-full object-contain" />
+                    ) : (
+                        <span className="text-sccs-green font-bold text-xs text-center">SCCS<br />LOGIN</span>
+                    )}
                 </div>
 
                 <h2 className="text-xl font-bold tracking-wide text-sccs-dark mb-6 text-center uppercase border-b border-sccs-gray pb-2 w-full">

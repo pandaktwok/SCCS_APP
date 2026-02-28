@@ -18,7 +18,10 @@ export default function Configuracao() {
     const [newCategoryName, setNewCategoryName] = useState("");
     const [newProjectTermo, setNewProjectTermo] = useState("");
     const [newProjectName, setNewProjectName] = useState("");
+    const [newCategoryIdStr, setNewCategoryIdStr] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("");
+
+    const [currentUser, setCurrentUser] = useState<{ username: string, role: string } | null>(null);
 
     const [newUsername, setNewUsername] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -32,6 +35,16 @@ export default function Configuracao() {
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear() < 2025 ? 2025 : new Date().getFullYear());
     const [selectedMonth, setSelectedMonth] = useState<string>("JANEIRO");
 
+    // Novos campos Obrigatorios
+    const [selectedProjectForUpload, setSelectedProjectForUpload] = useState("");
+    const [uploadAmount, setUploadAmount] = useState("");
+    const [uploadDate, setUploadDate] = useState("");
+
+    // Configurações Avançadas
+    const [companyName, setCompanyName] = useState("SOCIEDADE CULTURAL CRUZEIRO DO SUL");
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [settingsLoading, setSettingsLoading] = useState(false);
+
     const months = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: Math.max(5, currentYear - 2025 + 5) }, (_, i) => 2025 + i);
@@ -42,18 +55,23 @@ export default function Configuracao() {
 
     const fetchData = async () => {
         try {
-            const [catRes, projRes, userRes] = await Promise.all([
+            const [catRes, projRes, userRes, settingsRes] = await Promise.all([
                 fetch('/api/categories'),
                 fetch('/api/projects'),
-                fetch('/api/users')
+                fetch('/api/users'),
+                fetch('/api/settings')
             ]);
             const catData = await catRes.json();
             const projData = await projRes.json();
             const userData = await userRes.json();
+            const settingsData = await settingsRes.json();
 
             setCategories(catData);
             setProjects(projData);
             setUsers(Array.isArray(userData) ? userData : []);
+            if (settingsData && settingsData.companyName) {
+                setCompanyName(settingsData.companyName);
+            }
 
             if (catData.length > 0 && !selectedCategory) {
                 setSelectedCategory(catData[0].id.toString());
@@ -105,32 +123,108 @@ export default function Configuracao() {
         fetchData();
     };
 
+    const handleDeleteProject = async (id: number) => {
+        if (!window.confirm('Tem certeza que deseja deletar este projeto?')) return;
+        const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.error) alert(data.error);
+        fetchData();
+    };
+
+    const handleEditProject = async (p: Project) => {
+        const novoTermo = prompt("Novo Termo:", p.termo);
+        if (novoTermo === null) return;
+        const novoNome = prompt("Novo Nome:", p.name || "");
+        if (novoNome === null) return;
+
+        await fetch(`/api/projects/${p.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ termo: novoTermo, name: novoNome, category_id: p.category_id })
+        });
+        fetchData();
+    };
+
+    const handleDeleteCategory = async (id: number) => {
+        const cat = categories.find(c => c.id === id);
+        if (cat?.name === 'Sem Termo') {
+            alert("A categoria 'Sem Termo' não pode ser deletada.");
+            return;
+        }
+
+        if (!window.confirm('Tem certeza que deseja deletar esta categoria?')) return;
+        const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.error) alert(data.error);
+        fetchData();
+    };
+
+    const handleEditCategory = async (c: Category) => {
+        if (c.name === 'Sem Termo') {
+            alert("A categoria 'Sem Termo' não pode ser editada.");
+            return;
+        }
+        const novoNome = prompt("Novo Nome da Categoria:", c.name);
+        if (novoNome === null || !novoNome.trim()) return;
+
+        await fetch(`/api/categories/${c.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ name: novoNome })
+        });
+        fetchData();
+    };
+
     const handleProcessFiles = async () => {
         setErrorMessage("");
 
+        if (!selectedProjectForUpload) {
+            setErrorMessage("Erro: Você deve selecionar um Projeto/Termo.");
+            return;
+        }
+        if (!uploadAmount || !uploadDate) {
+            setErrorMessage("Erro: Você deve preencher o Valor e a Data de Pagamento.");
+            return;
+        }
         if (!invoiceFile) {
             setErrorMessage("Erro: Você deve anexar a Nota Fiscal.");
             return;
         }
 
         if (!isCombinedUpload && !receiptFile) {
-            setErrorMessage("Erro: Você deve anexar o Comprovante PIX ou marcar a opção 'Comprovante está junto à nota'.");
+            setErrorMessage("Erro: Você deve anexar o Comprovante PIX ou marcar a opção 'Comprovante está junto a nota'.");
             return;
         }
 
-        setProcessStatus("RENAMING");
+        setProcessStatus("MERGING");
 
-        // Simula processo
-        setTimeout(() => {
-            if (!isCombinedUpload) {
-                setProcessStatus("MERGING");
-                setTimeout(() => {
-                    setProcessStatus("DONE");
-                }, 2000); // 2 args merging
-            } else {
-                setProcessStatus("DONE");
+        try {
+            const formData = new FormData();
+            formData.append("projectId", selectedProjectForUpload);
+            formData.append("amount", uploadAmount);
+            formData.append("paymentDate", uploadDate);
+            formData.append("year", selectedYear.toString());
+            formData.append("month", selectedMonth);
+            formData.append("invoiceFile", invoiceFile);
+            if (!isCombinedUpload && receiptFile) {
+                formData.append("receiptFile", receiptFile);
             }
-        }, 2000); // 2 args renaming
+
+            const response = await fetch('/api/invoices/upload-historical', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Erro no processamento.");
+            }
+
+            setProcessStatus("DONE");
+            fetchData();
+        } catch (error: any) {
+            setErrorMessage(error.message);
+            setProcessStatus("ERROR");
+        }
     };
 
     const resetProcessFlow = () => {
@@ -139,8 +233,35 @@ export default function Configuracao() {
         setIsCombinedUpload(false);
         setProcessStatus("IDLE");
         setErrorMessage("");
+        setSelectedProjectForUpload("");
+        setUploadAmount("");
+        setUploadDate("");
     };
 
+
+    const handleUpdateSettings = async () => {
+        setSettingsLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('companyName', companyName);
+            if (logoFile) {
+                formData.append('logo', logoFile);
+            }
+
+            const res = await fetch('/api/settings', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) throw new Error("Erro ao salvar configurações globais");
+            alert("Configurações atualizadas com sucesso! Atualize a página para ver as marcações surtirem efeito global.");
+            setLogoFile(null); // limpa preview de input logo iterado
+        } catch (error) {
+            alert(error);
+        } finally {
+            setSettingsLoading(false);
+        }
+    };
 
     const handlePdfAction = (filePath: string, action: 'view' | 'download' | 'print') => {
         if (!filePath) {
@@ -225,12 +346,12 @@ export default function Configuracao() {
                 {/* User / Logout */}
                 <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                            TS
+                        <div className="w-8 h-8 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-xs shadow-sm uppercase">
+                            {currentUser?.username ? currentUser.username.substring(0, 2) : '??'}
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-xs font-semibold">Tainara Silva</span>
-                            <span className="text-[10px] text-gray-400">Financeiro</span>
+                            <span className="text-xs font-semibold capitalize">{currentUser?.username || 'Carregando...'}</span>
+                            <span className="text-[10px] text-gray-400 capitalize">{currentUser?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
                         </div>
                     </div>
                     <a href="/login" className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
@@ -313,31 +434,40 @@ export default function Configuracao() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {projects.map((p) => (
-                                                <tr key={p.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
-                                                    <td className="px-4 py-3 font-semibold">{p.termo}</td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex flex-col">
-                                                            <span>{p.name || '-'}</span>
-                                                            <span className="text-[10px] text-gray-500">{p.category?.name}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex justify-center gap-3">
-                                                            <button className="text-gray-400 hover:text-sccs-green transition-colors" title="Alterar">
-                                                                <Edit2 className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => { if (window.confirm('Tem certeza que deseja deletar este projeto?')) alert('Deletar projeto simulado'); }}
-                                                                className="text-gray-400 hover:text-sccs-red transition-colors"
-                                                                title="Deletar"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {projects.map((p) => {
+                                                const isProtected = p.termo === 'T 0000';
+                                                return (
+                                                    <tr key={p.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
+                                                        <td className="px-4 py-3 font-semibold">{p.termo}</td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex flex-col">
+                                                                <span>{p.name || '-'}</span>
+                                                                <span className="text-[10px] text-gray-500">{p.category?.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex justify-center gap-3">
+                                                                {!isProtected ? (
+                                                                    <>
+                                                                        <button onClick={() => handleEditProject(p)} className="text-gray-400 hover:text-sccs-green transition-colors" title="Alterar">
+                                                                            <Edit2 className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteProject(p.id)}
+                                                                            className="text-gray-400 hover:text-sccs-red transition-colors"
+                                                                            title="Deletar"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-xs text-gray-400 font-medium">Padrão</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
                                             {projects.length === 0 && (
                                                 <tr>
                                                     <td colSpan={3} className="text-center py-4 text-gray-400">Nenhum projeto cadastrado.</td>
@@ -387,26 +517,35 @@ export default function Configuracao() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {categories.map((c) => (
-                                                <tr key={c.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
-                                                    <td className="px-4 py-3 text-gray-500">#{c.id}</td>
-                                                    <td className="px-4 py-3 font-semibold">{c.name}</td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex justify-center gap-3">
-                                                            <button className="text-gray-400 hover:text-sccs-green transition-colors" title="Alterar">
-                                                                <Edit2 className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => { if (window.confirm('Tem certeza que deseja deletar esta categoria?')) alert('Deletar categoria simulado'); }}
-                                                                className="text-gray-400 hover:text-sccs-red transition-colors"
-                                                                title="Deletar"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {categories.map((c) => {
+                                                const isProtected = c.name === 'Sem Termo';
+                                                return (
+                                                    <tr key={c.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
+                                                        <td className="px-4 py-3 text-gray-500">#{c.id}</td>
+                                                        <td className="px-4 py-3 font-semibold">{c.name}</td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex justify-center gap-3">
+                                                                {!isProtected ? (
+                                                                    <>
+                                                                        <button onClick={() => handleEditCategory(c)} className="text-gray-400 hover:text-sccs-green transition-colors" title="Alterar">
+                                                                            <Edit2 className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDeleteCategory(c.id)}
+                                                                            className="text-gray-400 hover:text-sccs-red transition-colors"
+                                                                            title="Deletar"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-xs text-gray-400 font-medium">Padrão</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
                                             {categories.length === 0 && (
                                                 <tr>
                                                     <td colSpan={3} className="text-center py-4 text-gray-400">Nenhuma categoria cadastrada.</td>
@@ -469,21 +608,28 @@ export default function Configuracao() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {users.map((u) => (
-                                                <tr key={u.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
-                                                    <td className="px-4 py-3 font-semibold flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-[10px]">
-                                                            {u.username.substring(0, 2).toUpperCase()}
-                                                        </div>
-                                                        {u.username}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex justify-center gap-3">
-                                                            <button onClick={() => handleDeleteUser(u.id)} className="text-gray-400 hover:text-sccs-red transition-colors" title="Deletar"><Trash2 className="w-4 h-4" /></button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {users.map((u) => {
+                                                const isAdmin = u.username === 'admin';
+                                                return (
+                                                    <tr key={u.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
+                                                        <td className="px-4 py-3 font-semibold flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-[10px]">
+                                                                {u.username.substring(0, 2).toUpperCase()}
+                                                            </div>
+                                                            {u.username}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex justify-center gap-3">
+                                                                {!isAdmin ? (
+                                                                    <button onClick={() => handleDeleteUser(u.id)} className="text-gray-400 hover:text-sccs-red transition-colors" title="Deletar"><Trash2 className="w-4 h-4" /></button>
+                                                                ) : (
+                                                                    <span className="text-xs text-gray-400 font-medium">Protegido</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
                                             {users.length === 0 && (
                                                 <tr>
                                                     <td colSpan={2} className="text-center py-4 text-gray-400">Nenhum usuário cadastrado.</td>
@@ -536,6 +682,42 @@ export default function Configuracao() {
                                             <option key={y} value={y}>{y}</option>
                                         ))}
                                     </select>
+                                </div>
+                            </div>
+
+                            {/* Project, Amount and Date */}
+                            <div className="flex gap-4">
+                                <div className="flex-[1.5]">
+                                    <h3 className="text-sm font-bold text-sccs-dark mb-2 uppercase">PROJETO / TERMO</h3>
+                                    <select
+                                        className="w-full bg-white border border-sccs-border rounded-lg px-4 py-3 text-sm text-sccs-dark focus:outline-none focus:border-sccs-green focus:ring-1 focus:ring-sccs-green transition-all shadow-sm cursor-pointer"
+                                        value={selectedProjectForUpload}
+                                        onChange={e => setSelectedProjectForUpload(e.target.value)}
+                                    >
+                                        <option value="" disabled>Selecione um projeto...</option>
+                                        {projects.map(p => (
+                                            <option key={p.id} value={p.id}>{p.termo} - {p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-sm font-bold text-sccs-dark mb-2 uppercase">VALOR (R$)</h3>
+                                    <input
+                                        type="number" step="0.01"
+                                        className="w-full bg-white border border-sccs-border rounded-lg px-4 py-3 text-sm text-sccs-dark focus:outline-none focus:border-sccs-green focus:ring-1 focus:ring-sccs-green transition-all shadow-sm"
+                                        value={uploadAmount}
+                                        onChange={e => setUploadAmount(e.target.value)}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-sm font-bold text-sccs-dark mb-2 uppercase">DATA PAGAMENTO</h3>
+                                    <input
+                                        type="date"
+                                        className="w-full bg-white border border-sccs-border rounded-lg px-4 py-3 text-sm text-sccs-dark focus:outline-none focus:border-sccs-green focus:ring-1 focus:ring-sccs-green transition-all shadow-sm cursor-pointer"
+                                        value={uploadDate}
+                                        onChange={e => setUploadDate(e.target.value)}
+                                    />
                                 </div>
                             </div>
 
@@ -656,20 +838,26 @@ export default function Configuracao() {
                                     <input
                                         type="text"
                                         className="w-full bg-white border border-sccs-border rounded px-4 py-2.5 text-sccs-dark placeholder-gray-400 focus:outline-none focus:border-sccs-green focus:ring-1 focus:ring-sccs-green transition-all shadow-sm"
-                                        defaultValue="SOCIEDADE CULTURAL CRUZEIRO DO SUL"
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
                                         placeholder="Digite o nome da empresa"
                                     />
                                 </div>
-                                <div className="flex-1 min-w-[200px]">
+                                <div className="flex-[0.5] min-w-[200px]">
                                     <label className="block text-sm font-bold text-sccs-dark mb-2">LOGOMARCA</label>
-                                    <label className="flex w-full cursor-pointer items-center justify-center gap-2 bg-white border border-dashed border-gray-400 hover:border-sccs-green rounded px-4 py-2.5 text-gray-500 hover:text-sccs-green transition-colors shadow-sm">
-                                        <Upload className="w-4 h-4" />
-                                        <span className="text-sm font-medium">Alterar Imagem</span>
-                                        <input type="file" className="hidden" accept="image/*" />
+                                    <label className="flex w-full cursor-pointer items-center justify-center gap-2 bg-white border border-dashed border-gray-400 hover:border-sccs-green rounded px-4 py-2.5 text-gray-500 hover:text-sccs-green transition-colors shadow-sm overflow-hidden whitespace-nowrap">
+                                        <Upload className="w-4 h-4 flex-shrink-0" />
+                                        <span className="text-sm font-medium truncate">{logoFile ? logoFile.name : "Alterar Imagem"}</span>
+                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files && setLogoFile(e.target.files[0])} />
                                     </label>
                                 </div>
-                                <button className="bg-sccs-green hover:bg-[#0e8a80] text-white font-bold py-2.5 px-6 rounded shadow-sm transition-colors whitespace-nowrap flex items-center gap-2">
-                                    <Save className="w-4 h-4" /> ATUALIZAR
+                                <button
+                                    onClick={handleUpdateSettings}
+                                    disabled={settingsLoading}
+                                    className="bg-sccs-green hover:bg-[#0e8a80] disabled:bg-gray-400 text-white font-bold py-2.5 px-6 rounded shadow-sm transition-colors whitespace-nowrap flex items-center gap-2"
+                                >
+                                    {settingsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    {settingsLoading ? "SALVANDO..." : "ATUALIZAR"}
                                 </button>
                             </div>
                         </div>

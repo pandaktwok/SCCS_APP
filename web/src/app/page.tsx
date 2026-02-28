@@ -34,6 +34,7 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ username: string, role: string } | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [projectDisplayMode, setProjectDisplayMode] = useState<'termo' | 'nome' | 'tudo'>('termo');
   const [isMounted, setIsMounted] = useState(false);
@@ -45,20 +46,21 @@ export default function Home() {
 
   const fetchData = async () => {
     try {
-      const [catsRes, projRes, invRes] = await Promise.all([
+      const [catsRes, projRes, invRes, userRes] = await Promise.all([
         fetch('/api/categories'),
         fetch('/api/projects'),
-        fetch('/api/invoices')
+        fetch('/api/invoices'),
+        fetch('/api/auth/me')
       ]);
 
       if (catsRes.ok && projRes.ok && invRes.ok) {
-        const cats = await catsRes.json();
-        const projs = await projRes.json();
-        const invs = await invRes.json();
+        setCategories(await catsRes.json());
+        setProjects(await projRes.json());
+        setInvoices(await invRes.json());
+      }
 
-        setCategories(cats);
-        setProjects(projs);
-        setInvoices(invs);
+      if (userRes.ok) {
+        setCurrentUser(await userRes.json());
       }
     } catch (error) {
       console.error("Erro ao carregar os dados:", error);
@@ -104,6 +106,20 @@ export default function Home() {
       });
     } catch (e) {
       console.error("Falha ao atualizar o termo da nota:", e);
+      fetchData();
+    }
+  };
+
+  const handleDeleteInvoice = async (id: number) => {
+    if (!window.confirm("Tem certeza que deseja deletar esta nota fiscal?")) return;
+
+    // UI Optimistic
+    setInvoices(prev => prev.filter(inv => inv.id !== id));
+
+    try {
+      await fetch(`/api/invoices/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error("Falha ao deletar a nota:", e);
       fetchData();
     }
   };
@@ -279,12 +295,12 @@ export default function Home() {
         {/* User / Logout */}
         <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-xs shadow-sm">
-              TS
+            <div className="w-8 h-8 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-xs shadow-sm uppercase">
+              {currentUser?.username ? currentUser.username.substring(0, 2) : '??'}
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold">Tainara Silva</span>
-              <span className="text-[10px] text-gray-400">Financeiro</span>
+              <span className="text-xs font-semibold capitalize">{currentUser?.username || 'Carregando...'}</span>
+              <span className="text-[10px] text-gray-400 capitalize">{currentUser?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
             </div>
           </div>
           <a href="/login" className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
@@ -316,9 +332,11 @@ export default function Home() {
                     <button onClick={() => handlePdfAction(inv.file_path, 'view')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota">
                       <Eye className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => { if (window.confirm('Tem certeza que deseja deletar esta nota?')) alert('Deletar nota simulado'); }} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {(currentUser?.role === 'admin') && (
+                      <button onClick={() => handleDeleteInvoice(inv.id)} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex justify-between items-start mt-2">
