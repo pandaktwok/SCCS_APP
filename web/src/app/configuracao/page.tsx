@@ -318,15 +318,7 @@ export default function Configuracao() {
                     PROJETOS E CATEGORIA
                 </button>
 
-                <button
-                    onClick={() => setActiveTab("usuarios")}
-                    className={`py-3 px-4 rounded-md text-sm font-semibold tracking-wider transition-colors text-left ${activeTab === "usuarios"
-                        ? "bg-sccs-green text-white shadow"
-                        : "bg-transparent text-gray-300 hover:bg-white/5"
-                        }`}
-                >
-                    USUÁRIOS
-                </button>
+
 
                 <button
                     onClick={() => {
@@ -351,21 +343,7 @@ export default function Configuracao() {
                     AVANÇADAS
                 </button>
 
-                {/* User / Logout */}
-                <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-xs shadow-sm uppercase">
-                            {currentUser?.username ? currentUser.username.substring(0, 2) : '??'}
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-xs font-semibold capitalize">{currentUser?.username || 'Carregando...'}</span>
-                            <span className="text-[10px] text-gray-400 capitalize">{currentUser?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
-                        </div>
-                    </div>
-                    <button onClick={handleLogout} className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
-                        <LogOut className="w-4 h-4" />
-                    </button>
-                </div>
+
             </aside>
 
             {/* Main Content Area */}
@@ -563,88 +541,7 @@ export default function Configuracao() {
                 )}
 
 
-                {activeTab === "usuarios" && (
-                    <div className="flex flex-col gap-8 text-sccs-dark pr-2 h-full overflow-y-auto custom-scrollbar">
-                        {/* SECTION: USUÁRIOS */}
-                        <div className="flex gap-6 w-full flex-col md:flex-row">
-                            <div className="flex-1 bg-sccs-gray p-5 rounded-lg border border-sccs-border h-fit">
-                                <h2 className="text-lg font-bold tracking-widest mb-4 uppercase border-b border-sccs-border pb-2 text-sccs-dark">
-                                    Novo Usuário
-                                </h2>
-                                <div className="space-y-4">
-                                    <div className="w-full">
-                                        <label className="block text-xs font-bold text-sccs-dark mb-1">USUÁRIO / LOGIN</label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-white border border-sccs-border rounded-md px-3 py-2 text-sm text-sccs-dark placeholder-gray-400 focus:outline-none focus:border-sccs-green focus:ring-1 focus:ring-sccs-green transition-all"
-                                            placeholder="Nome de Usuário"
-                                            value={newUsername}
-                                            onChange={(e) => setNewUsername(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="w-full">
-                                        <label className="block text-xs font-bold text-sccs-dark mb-1">SENHA</label>
-                                        <input
-                                            type="password"
-                                            className="w-full bg-white border border-sccs-border rounded-md px-3 py-2 text-sm text-sccs-dark placeholder-gray-400 focus:outline-none focus:border-sccs-green focus:ring-1 focus:ring-sccs-green transition-all"
-                                            placeholder="••••••••"
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                        />
-                                    </div>
-                                    <button onClick={handleCreateUser} className="w-full bg-sccs-green hover:bg-[#0e8a80] text-white font-bold py-2 rounded-md shadow-sm transition-colors flex items-center justify-center gap-2 text-sm mt-2">
-                                        <Plus className="w-4 h-4" /> CADASTRAR USUÁRIO
-                                    </button>
-                                </div>
-                            </div>
 
-                            <div className="flex-1 bg-sccs-gray p-5 rounded-lg border border-sccs-border flex flex-col h-[500px]">
-                                <h2 className="text-lg font-bold tracking-widest mb-4 uppercase border-b border-sccs-border pb-2 text-sccs-dark">
-                                    Usuários Cadastrados
-                                </h2>
-                                <div className="flex-1 overflow-y-auto border border-sccs-border rounded-md bg-white custom-scrollbar">
-                                    <table className="w-full text-left text-sm text-sccs-dark">
-                                        <thead className="bg-gray-50 text-xs uppercase font-bold text-gray-500 border-b border-sccs-border sticky top-0">
-                                            <tr>
-                                                <th className="px-4 py-3">Usuário</th>
-                                                <th className="px-4 py-3 text-center">Ações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {users.map((u) => {
-                                                const isAdmin = u.username === 'admin';
-                                                return (
-                                                    <tr key={u.id} className="border-b border-sccs-border hover:bg-gray-50 transition-colors">
-                                                        <td className="px-4 py-3 font-semibold flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-[10px]">
-                                                                {u.username.substring(0, 2).toUpperCase()}
-                                                            </div>
-                                                            {u.username}
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <div className="flex justify-center gap-3">
-                                                                {!isAdmin ? (
-                                                                    <button onClick={() => handleDeleteUser(u.id)} className="text-gray-400 hover:text-sccs-red transition-colors" title="Deletar"><Trash2 className="w-4 h-4" /></button>
-                                                                ) : (
-                                                                    <span className="text-xs text-gray-400 font-medium">Protegido</span>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            })}
-                                            {users.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={2} className="text-center py-4 text-gray-400">Nenhum usuário cadastrado.</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
                 {activeTab === "historico" && (
                     <div className="flex flex-col h-full text-sccs-dark pr-2 max-w-3xl mx-auto w-full overflow-y-auto custom-scrollbar">

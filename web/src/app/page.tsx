@@ -312,21 +312,7 @@ export default function Home() {
           )
         })}
 
-        {/* User / Logout */}
-        <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-sccs-green text-white flex items-center justify-center font-bold text-xs shadow-sm uppercase">
-              {currentUser?.username ? currentUser.username.substring(0, 2) : '??'}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold capitalize">{currentUser?.username || 'Carregando...'}</span>
-              <span className="text-[10px] text-gray-400 capitalize">{currentUser?.role === 'admin' ? 'Administrador' : 'Usuário'}</span>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="text-gray-400 hover:text-sccs-red transition-colors p-1 flex items-center justify-center" title="Sair do Sistema">
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
+
       </aside>
 
       {/* Main Content Area */}
@@ -358,11 +344,9 @@ export default function Home() {
                     <button onClick={() => handlePdfAction(inv.file_path, 'print')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Imprimir Nota">
                       <Printer className="w-3.5 h-3.5" />
                     </button>
-                    {(currentUser?.role === 'admin') && (
-                      <button onClick={() => handleDeleteInvoice(inv.id)} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button onClick={() => handleDeleteInvoice(inv.id)} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   <div className="flex justify-between items-start mt-2">
