@@ -172,7 +172,7 @@ export default function Home() {
       return;
     }
 
-    const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}`;
+    const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}&action=${action}`;
 
     if (action === 'download') {
       // Força o download criando um link temporário
@@ -400,7 +400,7 @@ export default function Home() {
                   <button onClick={() => handlePdfAction(inv.file_path, 'view')} className="bg-white border border-gray-200 hover:bg-gray-50 text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Visualizar Nota">
                     <Eye className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => { if (window.confirm('Tem certeza que deseja deletar esta nota?')) alert('Deletar nota simulado'); }} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
+                  <button onClick={() => handleDeleteInvoice(inv.id)} className="bg-white border border-gray-200 hover:bg-red-50 text-sccs-red p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Deletar Nota">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
