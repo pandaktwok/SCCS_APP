@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { category_id, termo } = body;
+        const { category_id, termo, name } = body;
 
         if (!category_id || !termo) {
             return NextResponse.json({ error: "Category ID and Termo are required" }, { status: 400 });
@@ -25,7 +25,8 @@ export async function POST(req: Request) {
         const project = await prisma.projects.create({
             data: {
                 category_id: parseInt(category_id),
-                termo
+                termo,
+                name
             },
             include: { category: true }
         });

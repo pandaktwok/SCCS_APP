@@ -1,0 +1,189 @@
+{
+  "name": "n8n_sccs",
+  "nodes": [
+    {
+      "parameters": {
+        "downloadAttachments": true,
+        "options": {
+          "customEmailConfig": "[\"UNSEEN\"]"
+        }
+      },
+      "id": "9b005bc7-a12c-42d7-a34d-7f0dd938ffbc",
+      "name": "Email Read (SCCS)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        16,
+        528
+      ],
+      "credentials": {
+        "imap": {
+          "id": "SZnaGVJKrGoDZXXw",
+          "name": "IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.15.4:3001/api/webhooks/invoice",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"invoice_number\": \"{{ $node[\"AI Agent\"].json.output.match(/\"numero_nota\":\\s*\"(\\d+)\"/)[1] }}\",\n  \"supplier\": \"{{ $node[\"AI Agent\"].json.output.match(/\"fornecedor\":\\s*\"([^\"]+)\"/)[1] }}\",\n  \"amount\": \"{{ $node[\"AI Agent\"].json.output.match(/\"valor_total\":\\s*\"([^\"]+)\"/)[1] }}\",\n  \"date\": \"{{ $node[\"AI Agent\"].json.output.match(/\"data\":\\s*\"([^\"]+)\"/)[1] }}\",\n  \"project_term\": \"{{ $node[\"AI Agent\"].json.output.match(/\"termo_projeto\":\\s*\"([^\"]+)\"/)[1] }}\",\n  \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/Invoices/NF_{{ $node[\"AI Agent\"].json.output.match(/\"numero_nota\":\\s*\"(\\d+)\"/)[1] }}_{{ $node[\"AI Agent\"].json.output.match(/\"fornecedor\":\\s*\"([^\"]+)\"/)[1].replace(/\\s+/g, '_') }}.pdf\"\n}",
+        "options": {}
+      },
+      "id": "8031d0b2-733d-4fb6-9398-f15e67f11746",
+      "name": "SCCS Web API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1104,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        656
+      ],
+      "id": "a466781b-1baa-443f-b335-b6d2657ecf44",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Você é um assistente financeiro. Leia o texto da nota fiscal e extraia stritamente 5 informações em formato JSON: 'fornecedor', 'numero_nota', 'data', 'valor_total' e 'termo_projeto'.\n\nResponda APENAS o JSON bruto, sem blocos de código markdown ou explicações.\nTexto da nota: {{ $json.text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        432,
+        752
+      ],
+      "id": "118b907c-a98a-4077-84fb-65976a216cf5",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        432,
+        912
+      ],
+      "id": "c469a96a-0fea-49fb-b4a2-d38383281de7",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "XIPQdJJrcXyc1WjO",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "=/Invoices/NF_{{ $node[\"AI Agent\"].json.output.match(/\"numero_nota\":\\s*\"(\\d+)\"/)[1] }}_{{ $node[\"AI Agent\"].json.output.match(/\"fornecedor\":\\s*\"([^\"]+)\"/)[1].replace(/\\s+/g, '_') }}.pdf",
+        "fileContent": "attachment_0"
+      },
+      "type": "n8n-nodes-base.nextCloud",
+      "typeVersion": 1,
+      "position": [
+        752,
+        576
+      ],
+      "id": "6d2012dc-8b27-457b-91a5-80002dda90d8",
+      "name": "Upload a file",
+      "credentials": {
+        "nextCloudApi": {
+          "id": "k0d94VRENLQ4ci6h",
+          "name": "NextCloud account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Email Read (SCCS)": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload a file": {
+      "main": [
+        [
+          {
+            "node": "SCCS Web API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6ccf94e3-68b2-4baa-97eb-ad1525aa1b49",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "59d9be7c196bd8900b2cc3ff7c30da708f228fd373085c3171ff85169f5bdbb5"
+  },
+  "id": "wI2ZFEdrZyKYZxxA",
+  "tags": []
+}

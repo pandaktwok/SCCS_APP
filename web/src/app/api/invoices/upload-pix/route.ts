@@ -40,6 +40,28 @@ export async function POST(request: Request) {
             } catch (e) {
                 return NextResponse.json({ error: 'O PDF original da Nota Fiscal não foi encontrado na nuvem Nextcloud.' }, { status: 404 });
             }
+        } else if (invoice.file_path.startsWith('http://') || invoice.file_path.startsWith('https://')) {
+            let nextcloudPath = invoice.file_path;
+            const webdavBaseUrl = 'remote.php/webdav/';
+            const idx = invoice.file_path.indexOf(webdavBaseUrl);
+            if (idx !== -1) {
+                nextcloudPath = invoice.file_path.substring(idx + webdavBaseUrl.length);
+            } else {
+                try {
+                    const url = new URL(invoice.file_path);
+                    nextcloudPath = url.pathname;
+                } catch (e) { }
+            }
+
+            // Decodificar URI para caso o n8n tenha salvo com %20
+            nextcloudPath = decodeURI(nextcloudPath);
+
+            const { webdavClient } = require('@/lib/webdav');
+            try {
+                originalPdfBuffer = await webdavClient.getFileContents(nextcloudPath, { format: 'binary' }) as Buffer;
+            } catch (e) {
+                return NextResponse.json({ error: 'O PDF original da Nota Fiscal não foi encontrado na nuvem Nextcloud (via URL).' }, { status: 404 });
+            }
         } else {
             isLocalOriginal = true;
             const publicDir = path.join(process.cwd(), 'public');

@@ -64,6 +64,10 @@ export async function POST(request: Request) {
 
         await fs.writeFile(SETTINGS_FILE, JSON.stringify(currentSettings, null, 2));
 
+        // Revalida o cache do Next.js para forçar o recarregamento do layout e mostrar a nova logo na hora
+        const { revalidatePath } = require('next/cache');
+        revalidatePath('/', 'layout');
+
         return NextResponse.json({ success: true, settings: currentSettings });
     } catch (error: any) {
         console.error('Erro ao salvar settings:', error);
