@@ -62,6 +62,7 @@ export async function POST(request: Request) {
     const newInvoice = await prisma.invoices.create({
       data: {
         invoice_number: invoice_number,
+        supplier: supplier || "Fornecedor Não Identificado",
         amount: parseFloat(cleanAmount),
         file_path: finalFilePath,
         project_id: project.id,

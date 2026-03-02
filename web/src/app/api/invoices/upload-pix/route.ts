@@ -53,8 +53,8 @@ export async function POST(request: Request) {
                 } catch (e) { }
             }
 
-            // Decodificar URI para caso o n8n tenha salvo com %20
-            nextcloudPath = decodeURI(nextcloudPath);
+            // Decodificar URI para caso o n8n tenha salvo com %20 ou outros caracteres
+            nextcloudPath = decodeURIComponent(nextcloudPath);
 
             const { webdavClient } = require('@/lib/webdav');
             try {

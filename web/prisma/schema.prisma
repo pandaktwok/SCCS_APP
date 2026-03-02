@@ -38,6 +38,7 @@ model invoices {
   id               Int       @id @default(autoincrement())
   project_id       Int?
   invoice_number   String    @db.VarChar(100)
+  supplier         String?   @db.VarChar(255)
   amount           Decimal?  @db.Decimal(15, 2)
   file_path        String    @db.VarChar(500)
   status           String?   @default("A_PAGAR") @db.VarChar(50)

@@ -21,6 +21,7 @@ type Invoice = {
   invoice_number: string;
   amount: string;
   file_path: string;
+  supplier?: string | null;
   status: string;
   pix_receipt_path: string | null;
   payment_date?: string | null;
@@ -355,6 +356,7 @@ export default function Home() {
                         <FileText className={`w-4 h-4 ${isSemTermo ? 'text-red-500' : 'text-sccs-dark'}`} />
                         <span className={`font-semibold text-sm ${isSemTermo ? 'text-red-700' : 'text-sccs-dark'}`}>Nota Fiscal {inv.invoice_number}</span>
                       </div>
+                      {inv.supplier && <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{inv.supplier}</span>}
                       {isSemTermo ? (
                         <select
                           className="mt-1 text-xs bg-white border border-red-300 text-red-600 rounded p-1 w-full font-bold focus:outline-none focus:ring-1 focus:ring-red-500"
@@ -408,6 +410,7 @@ export default function Home() {
                 <div className="flex justify-between items-start mt-2">
                   <div className="flex flex-col text-left">
                     <span className="text-sm font-medium text-sccs-dark">Nota {inv.invoice_number}</span>
+                    {inv.supplier && <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">{inv.supplier}</span>}
                     <span className="text-xs text-sccs-green font-bold">{inv.project?.termo}</span>
                   </div>
                 </div>
@@ -498,7 +501,8 @@ export default function Home() {
                     <div className="flex justify-between items-start mt-2">
                       <div className="flex flex-col text-left">
                         <span className="text-sm font-semibold text-sccs-dark">Nota Fiscal {inv.invoice_number} + PIX</span>
-                        <span className="text-[10px] text-gray-500 font-medium">{inv.project?.termo}</span>
+                        {inv.supplier && <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{inv.supplier}</span>}
+                        <span className="text-[10px] text-gray-400 font-medium mt-0.5">{inv.project?.termo}</span>
                       </div>
                     </div>
                   </div>
