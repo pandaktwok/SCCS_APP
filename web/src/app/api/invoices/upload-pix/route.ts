@@ -31,6 +31,7 @@ export async function POST(request: Request) {
         let originalPdfBuffer: Buffer;
         let isLocalOriginal = false;
         let originalPdfPath = "";
+        let nextcloudPath = "";
 
         if (invoice.file_path.startsWith('[NEXTCLOUD]')) {
             const nextcloudPath = invoice.file_path.replace('[NEXTCLOUD]', '');
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'O PDF original da Nota Fiscal não foi encontrado na nuvem Nextcloud.' }, { status: 404 });
             }
         } else if (invoice.file_path.startsWith('http://') || invoice.file_path.startsWith('https://')) {
-            let nextcloudPath = invoice.file_path;
+            nextcloudPath = invoice.file_path;
 
             // Suporta tanto o padrão antigo "remote.php/webdav/" quanto o novo "remote.php/dav/files/usuario/"
             const match = nextcloudPath.match(/remote\.php\/(?:webdav|dav\/files\/[^/]+)\/(.*)/);
@@ -111,22 +112,11 @@ export async function POST(request: Request) {
 
         const mergedPdfBytes = await mergedPdf.save();
 
-        // 4. Salvar Árvore de Pastas Históricas NO NEXTCLOUD (WEBDAV)
-        const { webdavClient, ensureWebdavDirectory } = require('@/lib/webdav');
+        // 4. Salvar PDF Mesclado de Volta no Mesmo Caminho Original (Substituição)
+        const { webdavClient } = require('@/lib/webdav');
 
-        const currentYear = new Date().getFullYear().toString();
-        const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
-        const projectTerm = invoice.project?.termo.replace(/\s+/g, '') || 'SemTermo';
-
-        // Cria as pastas remotas se não existirem
-        const remoteFolder = await ensureWebdavDirectory(['historico', currentYear, currentMonth, projectTerm]);
-
-        const originalFileName = path.basename(invoice.file_path, '.pdf');
-        const finalFileName = `${originalFileName}_PIX.pdf`;
-        const remoteFilePath = `${remoteFolder}/${finalFileName}`;
-
-        // Faz o upload real do Buffer final para o Nextcloud
-        await webdavClient.putFileContents(remoteFilePath, Buffer.from(mergedPdfBytes));
+        // Faz o upload real do Buffer final para o Nextcloud, sobrescrevendo a NF original
+        await webdavClient.putFileContents(nextcloudPath, Buffer.from(mergedPdfBytes), { overwrite: true });
 
         // Limpeza opcional: Apagar o arquivo original do `/public` local para economizar espaço
         if (isLocalOriginal) {
@@ -137,21 +127,18 @@ export async function POST(request: Request) {
             }
         }
 
-        // 5. Atualizar o Banco de Dados com o camiho do Nextcloud
-        // Nós salvaremos a tag "[NEXTCLOUD]" na frente da rota para a nossa API saber como resgatar depois.
-        const dbPath = `[NEXTCLOUD]${remoteFilePath}`;
-
+        // 5. Atualizar o Banco de Dados
         await prisma.invoices.update({
             where: { id: invoiceId },
             data: {
                 status: 'PAGO',
                 payment_date: new Date(),
-                pix_receipt_path: dbPath,
-                file_path: dbPath // O link da nota passa a ser o arquivo único na nuvem
+                // file_path já contém o caminho (URL) e permanece idêntico apontando pra nf_sem_comprovante
             }
         });
 
-        return NextResponse.json({ success: true, message: 'Comprovante anexado! Documentos salvos no Nextcloud da Escola.', filePath: dbPath });
+        return NextResponse.json({ success: true, message: 'Comprovante anexado! A Nota foi grampeada na pasta temporária.', filePath: invoice.file_path });
+
 
     } catch (error: any) {
         console.error("Erro na mesclagem de PDF:", error);
