@@ -1,5 +1,5 @@
 {
-  "name": "n8n_sccs",
+  "name": "n8n_sccs_corrigido",
   "nodes": [
     {
       "parameters": {
@@ -25,24 +25,6 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://192.168.15.4:3001/api/webhooks/invoice",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"invoice_number\": \"{{ $json.numero_nota }}\",\n  \"supplier\": \"{{ $json.fornecedor }}\",\n  \"amount\": \"{{ $json.valor_total }}\",\n  \"date\": \"{{ $json.data }}\",\n  \"project_term\": \"{{ $json.termo_projeto }}\",\n  \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ $json.fornecedor.replace(/\\s+/g, '_') }}.pdf\"\n}",
-        "options": {}
-      },
-      "id": "8031d0b2-733d-4fb6-9398-f15e67f11746",
-      "name": "SCCS Web API",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        1104,
-        656
-      ]
-    },
-    {
-      "parameters": {
         "operation": "pdf",
         "binaryPropertyName": "attachment_0",
         "options": {}
@@ -51,7 +33,7 @@
       "typeVersion": 1.1,
       "position": [
         240,
-        656
+        528
       ],
       "id": "a466781b-1baa-443f-b335-b6d2657ecf44",
       "name": "Extract from File"
@@ -65,8 +47,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        432,
-        752
+        480,
+        528
       ],
       "id": "118b907c-a98a-4077-84fb-65976a216cf5",
       "name": "AI Agent"
@@ -79,8 +61,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        432,
-        912
+        480,
+        740
       ],
       "id": "c469a96a-0fea-49fb-b4a2-d38383281de7",
       "name": "Google Gemini Chat Model",
@@ -93,14 +75,42 @@
     },
     {
       "parameters": {
-        "path": "=/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ $json.fornecedor.replace(/\\s+/g, '_') }}.pdf",
+        "jsCode": "let rawOutput = $input.item.json.output;\nlet cleanText = rawOutput.replace(/```json|```/g, '').trim();\n\ntry {\n  let parsedData = JSON.parse(cleanText);\n\n  if (parsedData.valor_total) {\n    let valorSujo = String(parsedData.valor_total).replace(/[^\\d.,-]/g, '');\n    if (valorSujo.includes(',')) {\n      valorSujo = valorSujo.replace(/\\./g, '').replace(',', '.');\n    }\n    parsedData.valor_total = valorSujo;\n  }\n\n  if (parsedData.termo_projeto) {\n    let termoLimpo = String(parsedData.termo_projeto).split('/')[0].trim();\n    if (!termoLimpo.toUpperCase().startsWith('T ')) {\n      termoLimpo = \"T \" + termoLimpo;\n    }\n    parsedData.termo_projeto = termoLimpo;\n  }\n\n  return parsedData;\n\n} catch (error) {\n  return { erro: \"Falha na organização do JSON da IA neste item\", textoOrigin: cleanText };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        528
+      ],
+      "id": "code-node-id",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "position",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        1040,
+        460
+      ],
+      "id": "merge-node-id",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "path": "=/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ String($json.fornecedor).replace(/\\s+/g, '_') }}.pdf",
         "fileContent": "attachment_0"
       },
       "type": "n8n-nodes-base.nextCloud",
       "typeVersion": 1,
       "position": [
-        752,
-        576
+        1260,
+        460
       ],
       "id": "6d2012dc-8b27-457b-91a5-80002dda90d8",
       "name": "Upload a file",
@@ -110,6 +120,24 @@
           "name": "NextCloud account"
         }
       }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.15.4:3001/api/webhooks/invoice",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"invoice_number\": \"{{ $json.numero_nota }}\",\n  \"supplier\": \"{{ $json.fornecedor }}\",\n  \"amount\": \"{{ $json.valor_total }}\",\n  \"date\": \"{{ $json.data }}\",\n  \"project_term\": \"{{ $json.termo_projeto }}\",\n  \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ String($json.fornecedor).replace(/\\s+/g, '_') }}.pdf\"\n}",
+        "options": {}
+      },
+      "id": "8031d0b2-733d-4fb6-9398-f15e67f11746",
+      "name": "SCCS Web API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1520,
+        460
+      ]
     }
   ],
   "pinData": {},
@@ -123,9 +151,9 @@
             "index": 0
           },
           {
-            "node": "Upload a file",
+            "node": "Merge",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -141,23 +169,45 @@
         ]
       ]
     },
-    "AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Upload a file",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Google Gemini Chat Model": {
       "ai_languageModel": [
         [
           {
             "node": "AI Agent",
             "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Upload a file",
+            "type": "main",
             "index": 0
           }
         ]
