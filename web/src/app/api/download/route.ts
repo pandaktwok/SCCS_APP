@@ -17,17 +17,16 @@ export async function GET(request: Request) {
             nextcloudPath = pathQuery.replace('[NEXTCLOUD]', '');
         } else if (pathQuery.startsWith('http://') || pathQuery.startsWith('https://')) {
             nextcloudPath = pathQuery;
-            const webdavBaseUrl = 'remote.php/webdav/';
-            const idx = pathQuery.indexOf(webdavBaseUrl);
-            if (idx !== -1) {
-                nextcloudPath = pathQuery.substring(idx + webdavBaseUrl.length);
+            const match = nextcloudPath.match(/remote\.php\/(?:webdav|dav\/files\/[^/]+)\/(.*)/);
+            if (match && match[1]) {
+                nextcloudPath = '/' + match[1];
             } else {
                 try {
                     const url = new URL(pathQuery);
                     nextcloudPath = url.pathname;
                 } catch (e) { }
             }
-            nextcloudPath = decodeURI(nextcloudPath);
+            nextcloudPath = decodeURIComponent(nextcloudPath);
         } else {
             return NextResponse.json({
                 error: 'Arquivo ainda está gravado localmente (Sistema Antigo).',

@@ -18,17 +18,16 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
                 shouldDelete = true;
             } else if (invoice.file_path.startsWith('http://') || invoice.file_path.startsWith('https://')) {
                 nextcloudPath = invoice.file_path;
-                const webdavBaseUrl = 'remote.php/webdav/';
-                const idx = invoice.file_path.indexOf(webdavBaseUrl);
-                if (idx !== -1) {
-                    nextcloudPath = invoice.file_path.substring(idx + webdavBaseUrl.length);
+                const match = nextcloudPath.match(/remote\.php\/(?:webdav|dav\/files\/[^/]+)\/(.*)/);
+                if (match && match[1]) {
+                    nextcloudPath = '/' + match[1];
                 } else {
                     try {
                         const url = new URL(invoice.file_path);
                         nextcloudPath = url.pathname;
                     } catch (e) { }
                 }
-                nextcloudPath = decodeURI(nextcloudPath);
+                nextcloudPath = decodeURIComponent(nextcloudPath);
                 shouldDelete = true;
             }
 

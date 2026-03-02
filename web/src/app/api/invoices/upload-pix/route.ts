@@ -42,10 +42,11 @@ export async function POST(request: Request) {
             }
         } else if (invoice.file_path.startsWith('http://') || invoice.file_path.startsWith('https://')) {
             let nextcloudPath = invoice.file_path;
-            const webdavBaseUrl = 'remote.php/webdav/';
-            const idx = invoice.file_path.indexOf(webdavBaseUrl);
-            if (idx !== -1) {
-                nextcloudPath = invoice.file_path.substring(idx + webdavBaseUrl.length);
+
+            // Suporta tanto o padrão antigo "remote.php/webdav/" quanto o novo "remote.php/dav/files/usuario/"
+            const match = nextcloudPath.match(/remote\.php\/(?:webdav|dav\/files\/[^/]+)\/(.*)/);
+            if (match && match[1]) {
+                nextcloudPath = '/' + match[1];
             } else {
                 try {
                     const url = new URL(invoice.file_path);
