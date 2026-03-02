@@ -9,7 +9,7 @@
       },
       "id": "9b005bc7-a12c-42d7-a34d-7f0dd938ffbc",
       "name": "Email Read (SCCS)",
-      "type": "n8n-nodes-base.emailReadImapTrigger",
+      "type": "n8n-nodes-base.emailReadImap",
       "typeVersion": 1,
       "position": [
         16,
