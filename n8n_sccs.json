@@ -126,7 +126,7 @@
         "url": "http://192.168.15.4:3001/api/webhooks/invoice",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"invoice_number\": \"{{ $json.numero_nota }}\",\n  \"supplier\": \"{{ $json.fornecedor }}\",\n  \"amount\": \"{{ $json.valor_total }}\",\n  \"date\": \"{{ $json.data }}\",\n  \"project_term\": \"{{ $json.termo_projeto }}\",\n  \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ String($json.fornecedor).replace(/\\s+/g, '_') }}.pdf\"\n}",
+        "jsonBody": "={\n  \"invoice_number\": \"{{ $node[\\\"Merge\\\"].json.numero_nota }}\",\n  \"supplier\": \"{{ $node[\\\"Merge\\\"].json.fornecedor }}\",\n  \"amount\": \"{{ $node[\\\"Merge\\\"].json.valor_total }}\",\n  \"date\": \"{{ $node[\\\"Merge\\\"].json.data }}\",\n  \"project_term\": \"{{ $node[\\\"Merge\\\"].json.termo_projeto }}\",\n  \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_{{ $node[\\\"Merge\\\"].json.numero_nota }}_{{ String($node[\\\"Merge\\\"].json.fornecedor).replace(/\\s+/g, '_') }}.pdf\"\n}",
         "options": {}
       },
       "id": "8031d0b2-733d-4fb6-9398-f15e67f11746",

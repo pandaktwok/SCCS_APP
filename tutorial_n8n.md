@@ -1,42 +1,71 @@
-# Tutorial: Integração SCCS com n8n
+# Passo a Passo: Configuração do Fluxo n8n SCCS
 
-Este guia explica como configurar o fluxo fornecido no n8n para extrair notas fiscais recebidas por e-mail e enviá-las para a API do SCCS.
+Este documento foi totalmente reescrito para te dar as instruções exatas de **copiar e colar** em cada nó do seu n8n.
+Se o n8n apresentou erros de "[undefined]" ou queixas de parâmetros vazios, a configuração exata abaixo soluciona todos.
 
-## 1. Importando o Fluxo
+## O Que Fazer
+Você não precisa construir os blocos do zero. Você precisa **Importar** o arquivo, e **revisar/corrigir** os campos chaves conforme o guia abaixo.
 
-1. Abra o seu painel do n8n (geralmente em `http://<seu-ip-casaos>:5678`).
-2. No menu lateral esquerdo, clique em **Workflows** e depois em **Add workflow**.
-3. No canto superior direito, procure o ícone de engrenagem ou os três pontinhos (**...**) e selecione **Import from File**.
-4. Selecione o arquivo `n8n_sccs.json` que está na pasta raiz do seu projeto.
-5. O fluxo será carregado na tela, mostrando a conexão desde o recebimento do e-mail até o envio para a API da web.
+---
 
-## 2. Configurando as Credenciais
+### Passo 1: O Nó Gatilho (Email Trigger)
+Este é o bloco verde com o raio `⚡`. Ele processa um e-mail imediatamente assim que ele chega.
+*   **Action:** `Mark as Read` (Isto evita que o bot leia o e-mail dezenas de vezes).
+*   **Download Attachments:** `Ativado / ON`
+*   **Property Prefix Name:** `attachment_`
 
-O fluxo precisa de acesso a três serviços diferentes. Se alguma credencial estiver faltando ou incorreta, o nó ficará com um aviso vermelho/amarelo. Você precisará reconfigurá-las:
+### Passo 2: O Nó de IA (AI Agent)
+Este é o cérebro que lê a Nota Fiscal. Note a instrução (Prompt) que enviamos a ele:
+*   Clique no nó **AI Agent**.
+*   No campo de texto, cole EXATAMENTE:
+```text
+Você é um assistente financeiro. Leia o texto da nota fiscal e extraia estritamente 5 informações em formato JSON: 'fornecedor', 'numero_nota', 'data', 'valor_total' e 'termo_projeto'.
+Responda APENAS o JSON bruto, sem blocos de código markdown ou explicações.
+Texto da nota: {{ $json.text }}
+```
 
-1. **Email Read (IMAP):**
-   - Dê um duplo clique no nó "Email Read (SCCS)".
-   - Selecione a credencial IMAP apropriada (ou crie uma nova inserindo os detalhes de host, porta, e-mail e senha correspondentes à caixa de e-mail que receberá as notas). Mantenha a opção que busca apenas não lidos `"UNSEEN"`.
-2. **NextCloud (Armazenamento de PDFs):**
-   - Dê um duplo clique no nó "Upload a file" (nó do Nextcloud).
-   - Configure a credencial do **NextCloud Api account**. Insira sua WebDAV URL (se `.../dav/files/` não funcionar, tente usar `http://nextcloud.sccruzeirodosul.org/remote.php/webdav/`), o usuário da sua conta Nextcloud e sua senha/token.
-3. **Google Gemini (Extração de Dados com IA):**
-   - Dê um duplo clique no nó "Google Gemini Chat Model".
-   - Certifique-se de preencher a **Google Gemini(PaLM) Api account** com uma API Key válida do Google Gemini. A IA usará o prompt no nó "AI Agent" para extrair os 5 campos do PDF para o JSON final.
+### Passo 3: O Nó de Fusão (Merge)
+Este é o nó onde os textos e arquivos se reúnem. É ele que causou erros antes.
+*   Entre no nó **Merge**.
+*   **Mode:** `Combine`
+*   **Combination Mode:** Mude obrigatoriamente para `Merge By Position` (ou `Multiplex`).
+*   *(O N8N não vai mais te pedir Input 1 e Input 2).*
 
-## 3. Configurando a Rota da sua API no Next.js
+### Passo 4: O Nó de Upload (Nextcloud)
+Este nó sobe o PDF para o servidor do CasaOS.
+*   Entre no nó **Upload a file** (nuvem azul).
+*   **Operation:** `Upload`
+*   **File Path** (Copie e cole isto no retângulo preto):
+```text
+/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ String($json.fornecedor).replace(/\s+/g, '_') }}.pdf
+```
+*   **File Content:** `attachment_0`
 
-Certifique-se de que o webhook aponta para a URL correta na sua rede local ou servidor público:
-1. Dê um duplo clique no nó "SCCS Web API" (nó do tipo `HTTP Request`).
-2. No campo **URL**, verifique se o endereço bate com o lugar onde sua API está rodando. O padrão atual no arquivo é:
-   `http://192.168.15.4:3001/api/webhooks/invoice`
-   Se você usa outra porta (ex: 3000) ou outro IP, atualize aqui.
+### Passo 5: O Nó SCCS Web API (O Salvador do Banco de Dados)
+Este é o nó final roxo (HTTP Request). É ele que envia os dados para o seu site (Next.js/PostgreSQL).
+Como o nó anterior (Nextcloud) apagou os dados do PDF da esteira após o upload, se usarmos o código normal o Next.js vai gravar seu banco de dados vazio. 
+Você precisa obrigatoriamente usar na aba **JSON** o código que busca os dados no passado (no nó Merge).
 
-*(Nota: O erro de formatação duplo do `file_url` no JSON original já foi corrigido por você)*
+*   Entre no nó **SCCS Web API**.
+*   URL: `http://192.168.15.4:3001/api/webhooks/invoice`
+*   **Body Content Type:** `JSON`
+*   **Specify Body:** `Using JSON`
+*   No campo preto grande (JSON), **apague TUDO** e Cole EXATAMENTE este bloco abaixo:
 
-## 4. Teste e Ativação
+```json
+{
+  "invoice_number": "{{ $node[\"Merge\"].json.numero_nota }}",
+  "supplier": "{{ $node[\"Merge\"].json.fornecedor }}",
+  "amount": "{{ $node[\"Merge\"].json.valor_total }}",
+  "date": "{{ $node[\"Merge\"].json.data }}",
+  "project_term": "{{ $node[\"Merge\"].json.termo_projeto }}",
+  "file_url": "http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_{{ $node[\"Merge\"].json.numero_nota }}_{{ String($node[\"Merge\"].json.fornecedor).replace(/\\s+/g, '_') }}.pdf"
+}
+```
 
-1. Com o sistema SCCS Next.js rodando (`npm run dev` ou container docker rodando), tente enviar um e-mail de teste com uma Nota Fiscal em PDF para o e-mail cadastrado no nó IMAP.
-2. No n8n, clique em **Test Workflow** (na parte inferior da tela). Ele buscará o servidor de e-mail por algo novo e começará a procissão.
-3. Se tudo estiver correto, o nó **SCCS Web API** retornará `Status 201: Created` com sucesso.
-4. Você pode ativar permanentemente o Workflow acionando o botão de **Active** no canto superior direito para o fluxo operar sozinho em background.
+> **Por que `$node["Merge"]`?** Isso diz ao N8N: *"Não tente pegar os dados que saíram do Nextcloud, porque eles estão em branco. Volte no tempo até o nó `Merge` e recupere as variáveis `numero_nota` e `fornecedor` lá de trás!"*. Isso previne 100% dos erros `[undefined]`.
+
+---
+
+### Passo Bônus: Salvando o Banco de Gravações
+Sempre que você alterar um nó no n8n, você precisa clicar no grande botão laranja `Execute Step` (canto superior) ou no botão gigante do lado esquerdo `Execute Workflow` para rodar os dados do início ao fim e confirmar se as luzes verdes se acendem.
