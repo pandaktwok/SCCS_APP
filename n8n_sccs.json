@@ -137,11 +137,36 @@
         1520,
         460
       ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "19bfae92-3580-4966-aefb-db81a967a5b3",
+      "name": "Loop",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        200,
+        350
+      ]
     }
   ],
   "pinData": {},
   "connections": {
     "Email Read (SCCS)": {
+      "main": [
+        [
+          {
+            "node": "Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop": {
       "main": [
         [
           {
@@ -217,6 +242,17 @@
         [
           {
             "node": "SCCS Web API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SCCS Web API": {
+      "main": [
+        [
+          {
+            "node": "Loop",
             "type": "main",
             "index": 0
           }
