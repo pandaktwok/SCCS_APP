@@ -77,7 +77,7 @@ export default function Historico() {
             return;
         }
 
-        const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}`;
+        const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}&action=${action}`;
 
         if (action === 'download') {
             const a = document.createElement('a');
