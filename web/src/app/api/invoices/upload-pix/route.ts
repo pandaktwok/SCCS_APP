@@ -148,6 +148,7 @@ export async function POST(request: Request) {
             await fs.appendFile(path.join(process.cwd(), 'debug_error.log'), new Date().toISOString() + '\\n' + (error.stack || error) + '\\n\\n');
         } catch (e) { }
 
-        return NextResponse.json({ error: "Falha interna ao grampear os arquivos.", details: error.message, stack: error.stack }, { status: 500 });
+        const rawErr = error.stack || error.message || String(error);
+        return NextResponse.json({ error: `[DETALHES] Falha interna: ${rawErr}`, details: error.message, stack: error.stack }, { status: 500 });
     }
 }
