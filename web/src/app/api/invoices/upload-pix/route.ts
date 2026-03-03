@@ -79,13 +79,13 @@ export async function POST(request: Request) {
         const mergedPdf = await PDFDocument.create();
 
         // --- Anexar PDF Original (Nota) ---
-        const originalDoc = await PDFDocument.load(originalPdfBuffer);
+        const originalDoc = await PDFDocument.load(originalPdfBuffer, { ignoreEncryption: true });
         const copiedOriginalPages = await mergedPdf.copyPages(originalDoc, originalDoc.getPageIndices());
         copiedOriginalPages.forEach((page) => mergedPdf.addPage(page));
 
         // --- Anexar Comprovante PIX ---
         if (file.type === 'application/pdf') {
-            const pixDoc = await PDFDocument.load(pixBuffer);
+            const pixDoc = await PDFDocument.load(pixBuffer, { ignoreEncryption: true });
             const copiedPixPages = await mergedPdf.copyPages(pixDoc, pixDoc.getPageIndices());
             copiedPixPages.forEach((page) => mergedPdf.addPage(page));
         } else if (file.type.startsWith('image/')) {
@@ -141,7 +141,13 @@ export async function POST(request: Request) {
 
 
     } catch (error: any) {
-        console.error("Erro na mesclagem de PDF:", error);
-        return NextResponse.json({ error: "Falha interna ao grampear os arquivos.", details: error.message }, { status: 500 });
+        console.error("Erro na mesclagem de PDF:", error.stack || error);
+
+        // Logar o erro também num arquivo temporário caso não vejamos o console docker
+        try {
+            await fs.appendFile(path.join(process.cwd(), 'debug_error.log'), new Date().toISOString() + '\\n' + (error.stack || error) + '\\n\\n');
+        } catch (e) { }
+
+        return NextResponse.json({ error: "Falha interna ao grampear os arquivos.", details: error.message, stack: error.stack }, { status: 500 });
     }
 }

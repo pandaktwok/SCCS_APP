@@ -445,7 +445,7 @@ export default function Home() {
                           updateInvoiceStatus(inv.id, 'PAGO');
                           alert(data.message);
                         } else {
-                          alert('Erro: ' + data.error);
+                          alert(`Erro: ${data.error}\n\nDetalhes Técnicos: ${data.details || 'Sem detalhes adidionais'}`);
                         }
                       } catch (e) {
                         console.error(e);
