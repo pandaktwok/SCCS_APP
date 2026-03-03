@@ -190,7 +190,27 @@ export default function Historico() {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        alert(`Efetuando download das notas do projeto: ${proj}`);
+
+                                                        // Filta as notas do ano, mês e projeto clicado
+                                                        const targetInvoices = invoices.filter(i => {
+                                                            const d = new Date(i.payment_date!);
+                                                            return d.getFullYear() === selectedYear &&
+                                                                d.getMonth() === monthIndex &&
+                                                                (i.project?.termo || 'Sem Projeto') === proj &&
+                                                                i.file_path;
+                                                        });
+
+                                                        if (targetInvoices.length === 0) {
+                                                            alert("Nenhum arquivo para baixar neste projeto.");
+                                                            return;
+                                                        }
+
+                                                        // Dispara o download sequenciado para evitar bloqueios de popup do navegador
+                                                        targetInvoices.forEach((inv, idx) => {
+                                                            setTimeout(() => {
+                                                                handlePdfAction(inv.file_path, 'download');
+                                                            }, idx * 500);
+                                                        });
                                                     }}
                                                     className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/20 hover:text-white transition-all text-gray-400"
                                                     title="Baixar notas deste projeto"
