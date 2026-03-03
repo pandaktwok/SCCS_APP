@@ -39,7 +39,8 @@ Este nó sobe o PDF para o servidor do CasaOS.
 ```text
 /sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ String($json.fornecedor).replace(/\s+/g, '_') }}.pdf
 ```
-*   **File Content:** `attachment_0`
+*   **Binary Data:** `Ativado / ON` (Procure uma chavinha ou toggle com este nome)
+*   **Binary Property:** `attachment_0` (Nunca use o campo "File Content" de texto puro, se ele existir deixe em branco).
 
 ### Passo 5: O Nó SCCS Web API (O Salvador do Banco de Dados)
 Este é o nó final roxo (HTTP Request). É ele que envia os dados para o seu site (Next.js/PostgreSQL).

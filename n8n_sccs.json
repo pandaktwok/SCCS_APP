@@ -87,8 +87,10 @@
     },
     {
       "parameters": {
-        "path": "=/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ String($json.fornecedor).replace(/\\s+/g, '_') }}.pdf",
-        "fileContent": "attachment_0"
+        "operation": "upload",
+        "binaryData": true,
+        "binaryPropertyName": "attachment_0",
+        "path": "=/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ String($json.fornecedor).replace(/\\s+/g, '_') }}.pdf"
       },
       "type": "n8n-nodes-base.nextCloud",
       "typeVersion": 1,
