@@ -136,6 +136,20 @@
         200,
         350
       ]
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "e6f8a2ad-8b21-4f16-95f0-6c9ab8debef0",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        360,
+        528
+      ]
     }
   ],
   "pinData": {},
@@ -163,6 +177,17 @@
       ]
     },
     "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
       "main": [
         [
           {
