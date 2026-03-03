@@ -1,0 +1,1 @@
+const fs=require('fs'); let c=fs.readFileSync('web/src/app/api/invoices/upload-pix/route.ts', 'utf8'); c=c.replace(/const projectTerm = .*?;/, 'const projectTerm = invoice.project?.termo.replace(/\\\\//g, \'-\').replace(/\\\\s+/g, \'\') || \'SemTermo\';'); fs.writeFileSync('web/src/app/api/invoices/upload-pix/route.ts', c);

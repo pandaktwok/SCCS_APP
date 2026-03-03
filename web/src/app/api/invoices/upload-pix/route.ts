@@ -119,20 +119,40 @@ export async function POST(request: Request) {
 
         const mergedPdfBytes = await mergedPdf.save();
 
-        // 4. Salvar PDF Mesclado de Volta no Mesmo Caminho Original (Substituição)
-        const { webdavClient } = require('@/lib/webdav');
+        // 4. Salvar PDF Mesclado no Diretório de Histórico
+        const { webdavClient, ensureWebdavDirectory } = require('@/lib/webdav');
 
-        // Faz o upload real do Buffer final para o Nextcloud, sobrescrevendo a NF original
-        await webdavClient.putFileContents(nextcloudPath, Buffer.from(mergedPdfBytes), { overwrite: true });
+        const currentYear = new Date().getFullYear().toString();
+        const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+        const projectTerm = invoice.project?.termo.replace(/\\//g, '-').replace(/\\s+/g, '') || 'SemTermo';
 
-        // Limpeza opcional: Apagar o arquivo original do `/public` local para economizar espaço
+        // Cria: /sccs_api/historico/2026/03/T3171
+        const remoteFolder = await ensureWebdavDirectory(['sccs_api', 'historico', currentYear, currentMonth, projectTerm]);
+        const originalFileName = path.basename(nextcloudPath) || `NF_${invoiceId}.pdf`;
+        const newRemoteFilePath = `${remoteFolder}/${originalFileName}`;
+
+        // Faz o upload real do Buffer final para a nova pasta no Nextcloud
+        await webdavClient.putFileContents(newRemoteFilePath, Buffer.from(mergedPdfBytes), { overwrite: true });
+
+        // Exclui a Nota original solta lá da pasta raiz/antiga para manter organizado
+        try {
+            if (nextcloudPath && nextcloudPath !== newRemoteFilePath) {
+                await webdavClient.deleteFile(nextcloudPath);
+            }
+        } catch (e) { console.warn("Aviso: arquivo original do nextcloud não deletado", e) }
+
+        // Limpeza opcional: Apagar o arquivo original do `/public` local se existir
         if (isLocalOriginal) {
             try {
                 await fs.unlink(originalPdfPath);
             } catch (e) {
-                console.warn("Não foi possível excluir o arquivo original temporário.", e);
+                console.warn("Não foi possível excluir o arquivo original temporário local.", e);
             }
         }
+
+        // Construir URL Final para o Banco de Dados
+        const fullHost = invoice.file_path.split('/remote.php')[0] || "http://nextcloud.sccruzeirodosul.org";
+        const newDatabaseUrl = `${fullHost}/remote.php/dav/files/casaos${newRemoteFilePath}`;
 
         // 5. Atualizar o Banco de Dados
         await prisma.invoices.update({
@@ -140,11 +160,12 @@ export async function POST(request: Request) {
             data: {
                 status: 'PAGO',
                 payment_date: new Date(),
-                // file_path já contém o caminho (URL) e permanece idêntico apontando pra nf_sem_comprovante
+                file_path: newDatabaseUrl,
+                pix_receipt_path: newDatabaseUrl
             }
         });
 
-        return NextResponse.json({ success: true, message: 'Comprovante anexado! A Nota foi grampeada na pasta temporária.', filePath: invoice.file_path });
+        return NextResponse.json({ success: true, message: 'Comprovante anexado! A Nota foi grampeada e movida para o Histórico de Pagamentos.', filePath: newDatabaseUrl });
 
 
     } catch (error: any) {
