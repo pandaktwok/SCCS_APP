@@ -324,10 +324,7 @@ export default function Home() {
             <h2 className="text-lg font-bold text-sccs-dark">
               A PAGAR
             </h2>
-            <label className="cursor-pointer bg-sccs-gray hover:bg-white border border-sccs-border text-sccs-dark p-1.5 rounded-md flex items-center justify-center transition-colors shadow-sm" title="Anexar Nota Manualmente">
-              <Upload className="w-4 h-4 text-sccs-green" />
-              <input type="file" className="hidden" accept=".pdf,image/*" />
-            </label>
+
           </div>
           <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
             {invoicesAPagar.map((inv) => {
@@ -468,9 +465,7 @@ export default function Home() {
             <h2 className="text-lg font-bold text-sccs-dark">
               NF + PIX
             </h2>
-            <button onClick={handleDownloadAll} className="bg-sccs-green hover:bg-[#0e8a80] text-white p-1.5 rounded flex items-center justify-center transition-colors shadow-sm" title="Baixar Todos">
-              <Download className="w-4 h-4" />
-            </button>
+
           </div>
           <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
             {groupedPagos.map((group, groupIdx) => (
