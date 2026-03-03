@@ -75,6 +75,13 @@ export async function POST(request: Request) {
             }
         }
 
+        // --- Diagnóstico de Headers ---
+        console.log(`[DEBUG] originalPdfBuffer size: ${originalPdfBuffer.length} bytes`);
+        console.log(`[DEBUG] originalPdfBuffer prefix: ${originalPdfBuffer.subarray(0, 50).toString('utf-8').replace(/\\n/g, '')}`);
+        if (!originalPdfBuffer.subarray(0, 5).toString('utf-8').includes('%PDF')) {
+            return NextResponse.json({ error: `[DETALHES] O arquivo da Nota Fiscal carregado da nuvem não é um PDF válido. Retorno: ${originalPdfBuffer.subarray(0, 50).toString('utf-8')}` }, { status: 500 });
+        }
+
         // 3. Mesclar PDFs usando pdf-lib
         const mergedPdf = await PDFDocument.create();
 
