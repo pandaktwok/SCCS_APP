@@ -124,7 +124,7 @@ export async function POST(request: Request) {
 
         const currentYear = new Date().getFullYear().toString();
         const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
-        const projectTerm = invoice.project?.termo.replace(/\\//g, '-').replace(/\\s+/g, '') || 'SemTermo';
+        const projectTerm = invoice.project?.termo.replace(/\\s+/g, '').split('/').join('-') || 'SemTermo';
 
         // Cria: /sccs_api/historico/2026/03/T3171
         const remoteFolder = await ensureWebdavDirectory(['sccs_api', 'historico', currentYear, currentMonth, projectTerm]);
