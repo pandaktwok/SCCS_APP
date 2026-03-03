@@ -111,7 +111,7 @@
         "url": "http://192.168.15.4:3001/api/webhooks/invoice",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"invoice_number\": \"{{ $node[\\\"Code in JavaScript\\\"].json.numero_nota }}\",\n  \"supplier\": \"{{ $node[\\\"Code in JavaScript\\\"].json.fornecedor }}\",\n  \"amount\": \"{{ $node[\\\"Code in JavaScript\\\"].json.valor_total }}\",\n  \"date\": \"{{ $node[\\\"Code in JavaScript\\\"].json.data }}\",\n  \"project_term\": \"{{ $node[\\\"Code in JavaScript\\\"].json.termo_projeto }}\",\n  \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_{{ $node[\\\"Code in JavaScript\\\"].json.numero_nota }}_{{ String($node[\\\"Code in JavaScript\\\"].json.fornecedor).replace(/\\s+/g, '_') }}.pdf\"\n}",
+        "jsonBody": "={{\n  {\n    \"invoice_number\": $node['Code in JavaScript'].json.numero_nota,\n    \"supplier\": $node['Code in JavaScript'].json.fornecedor,\n    \"amount\": String($node['Code in JavaScript'].json.valor_total),\n    \"date\": $node['Code in JavaScript'].json.data,\n    \"project_term\": $node['Code in JavaScript'].json.termo_projeto ? $node['Code in JavaScript'].json.termo_projeto : \"T 0000\",\n    \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_\" + $node['Code in JavaScript'].json.numero_nota + \"_\" + String($node['Code in JavaScript'].json.fornecedor).replace(/\\s+/g, '_') + \".pdf\"\n  }\n}}",
         "options": {}
       },
       "id": "8031d0b2-733d-4fb6-9398-f15e67f11746",
