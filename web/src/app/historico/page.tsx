@@ -12,6 +12,7 @@ type Invoice = {
     status: string;
     pix_receipt_path: string | null;
     payment_date: string | null;
+    supplier?: string | null;
     project: { termo: string };
 };
 
@@ -254,7 +255,9 @@ export default function Historico() {
                                     <FileText className="w-6 h-6" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="font-bold text-sccs-dark text-lg">Nota Fiscal {inv.invoice_number} + Comprovante PIX</span>
+                                    <span className="font-bold text-sccs-dark text-lg">
+                                        {inv.supplier ? `${inv.supplier} + PIX` : `Nota Fiscal ${inv.invoice_number} + Comprovante PIX`}
+                                    </span>
                                     <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
                                         <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">PAGO</span>
                                         <span>•</span>
