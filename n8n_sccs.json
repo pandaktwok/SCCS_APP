@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let results = [];\n\nfor (const item of $input.all()) {\n  try {\n    let rawOutput = item.json.output;\n    let cleanText = rawOutput.replace(/```json|```/g, '').trim();\n    let parsedData = JSON.parse(cleanText);\n\n    if (parsedData.valor_total) {\n      let valorSujo = String(parsedData.valor_total).replace(/[^\\d.,-]/g, '');\n      if (valorSujo.includes(',')) {\n        valorSujo = valorSujo.replace(/\\./g, '').replace(',', '.');\n      }\n      parsedData.valor_total = valorSujo;\n    }\n\n    if (parsedData.termo_projeto) {\n      let termoLimpo = String(parsedData.termo_projeto).split('/')[0].trim();\n      if (!termoLimpo.toUpperCase().startsWith('T ')) {\n        termoLimpo = \"T \" + termoLimpo;\n      }\n      parsedData.termo_projeto = termoLimpo;\n    }\n\n    results.push({ json: parsedData });\n\n  } catch (error) {\n    results.push({ json: { erro: \"Falha na organizacao do JSON neste item\", textoOrigin: item.json.output } });\n  }\n}\n\nreturn results;"
+        "jsCode": "let results = [];\nlet originalBinary;\ntry {\n  originalBinary = $('Loop').first().binary;\n} catch (e) {\n  try {\n    originalBinary = $items('Loop')[0].binary;\n  } catch(e2) {}\n}\n\nfor (const item of $input.all()) {\n  try {\n    let rawOutput = item.json.output;\n    let cleanText = rawOutput.replace(/```json|```/g, '').trim();\n    let parsedData = JSON.parse(cleanText);\n\n    if (parsedData.valor_total) {\n      let valorSujo = String(parsedData.valor_total).replace(/[^\\d.,-]/g, '');\n      if (valorSujo.includes(',')) {\n        valorSujo = valorSujo.replace(/\\./g, '').replace(',', '.');\n      }\n      parsedData.valor_total = valorSujo;\n    }\n\n    if (parsedData.termo_projeto && parsedData.termo_projeto !== null && parsedData.termo_projeto !== 'null') {\n      let termoLimpo = String(parsedData.termo_projeto).split('/')[0].trim();\n      if (!termoLimpo.toUpperCase().startsWith('T ')) {\n        termoLimpo = 'T ' + termoLimpo;\n      }\n      parsedData.termo_projeto = termoLimpo;\n    } else {\n      parsedData.termo_projeto = 'T 0000';\n    }\n\n    results.push({ \n      json: parsedData,\n      binary: originalBinary \n    });\n  } catch (error) {\n    results.push({ json: { erro: \"Falha na organizacao do JSON\", textoOrigin: item.json.output } });\n  }\n}\n\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -87,29 +87,14 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combineBy": "position",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 2.1,
-      "position": [
-        1040,
-        460
-      ],
-      "id": "merge-node-id",
-      "name": "Merge"
-    },
-    {
-      "parameters": {
         "path": "=/sccs_api/nf_sem_comprovante/NF_{{ $json.numero_nota }}_{{ String($json.fornecedor).replace(/\\s+/g, '_') }}.pdf",
         "fileContent": "attachment_0"
       },
       "type": "n8n-nodes-base.nextCloud",
       "typeVersion": 1,
       "position": [
-        1260,
-        460
+        1040,
+        528
       ],
       "id": "6d2012dc-8b27-457b-91a5-80002dda90d8",
       "name": "Upload a file",
@@ -126,7 +111,7 @@
         "url": "http://192.168.15.4:3001/api/webhooks/invoice",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"invoice_number\": \"{{ $node[\\\"Merge\\\"].json.numero_nota }}\",\n  \"supplier\": \"{{ $node[\\\"Merge\\\"].json.fornecedor }}\",\n  \"amount\": \"{{ $node[\\\"Merge\\\"].json.valor_total }}\",\n  \"date\": \"{{ $node[\\\"Merge\\\"].json.data }}\",\n  \"project_term\": \"{{ $node[\\\"Merge\\\"].json.termo_projeto }}\",\n  \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_{{ $node[\\\"Merge\\\"].json.numero_nota }}_{{ String($node[\\\"Merge\\\"].json.fornecedor).replace(/\\s+/g, '_') }}.pdf\"\n}",
+        "jsonBody": "={\n  \"invoice_number\": \"{{ $node[\\\"Code in JavaScript\\\"].json.numero_nota }}\",\n  \"supplier\": \"{{ $node[\\\"Code in JavaScript\\\"].json.fornecedor }}\",\n  \"amount\": \"{{ $node[\\\"Code in JavaScript\\\"].json.valor_total }}\",\n  \"date\": \"{{ $node[\\\"Code in JavaScript\\\"].json.data }}\",\n  \"project_term\": \"{{ $node[\\\"Code in JavaScript\\\"].json.termo_projeto }}\",\n  \"file_url\": \"http://nextcloud.sccruzeirodosul.org/remote.php/dav/files/casaos/sccs_api/nf_sem_comprovante/NF_{{ $node[\\\"Code in JavaScript\\\"].json.numero_nota }}_{{ String($node[\\\"Code in JavaScript\\\"].json.fornecedor).replace(/\\s+/g, '_') }}.pdf\"\n}",
         "options": {}
       },
       "id": "8031d0b2-733d-4fb6-9398-f15e67f11746",
@@ -134,8 +119,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1520,
-        460
+        1300,
+        528
       ]
     },
     {
@@ -173,11 +158,6 @@
             "node": "Extract from File",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 1
           }
         ]
       ]
@@ -216,17 +196,6 @@
       ]
     },
     "Code in JavaScript": {
-      "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge": {
       "main": [
         [
           {
