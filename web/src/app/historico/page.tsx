@@ -205,12 +205,16 @@ export default function Historico() {
                                                             return;
                                                         }
 
-                                                        // Dispara o download sequenciado para evitar bloqueios de popup do navegador
-                                                        targetInvoices.forEach((inv, idx) => {
-                                                            setTimeout(() => {
-                                                                handlePdfAction(inv.file_path, 'download');
-                                                            }, idx * 500);
-                                                        });
+                                                        const monthString = (monthIndex + 1).toString().padStart(2, '0');
+                                                        const downloadZipUrl = `/api/download-folder?year=${selectedYear}&month=${monthString}&project=${encodeURIComponent(proj)}`;
+
+                                                        // Aciona o download do ZIP pelo navegador
+                                                        const a = document.createElement('a');
+                                                        a.href = downloadZipUrl;
+                                                        a.setAttribute('download', '');
+                                                        document.body.appendChild(a);
+                                                        a.click();
+                                                        a.remove();
                                                     }}
                                                     className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/20 hover:text-white transition-all text-gray-400"
                                                     title="Baixar notas deste projeto"
