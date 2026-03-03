@@ -79,9 +79,9 @@ export default function Home() {
     window.location.href = '/login';
   };
 
-  const updateInvoiceStatus = async (id: number, status: string) => {
+  const updateInvoiceStatus = async (id: number, status: string, newFilePath?: string) => {
     // Optimistic UI Update first
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
+    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status, ...(newFilePath ? { file_path: newFilePath } : {}) } : inv));
 
     // Call the actual backend update route
     try {
@@ -441,8 +441,8 @@ export default function Home() {
 
                         const data = await res.json();
                         if (data.success) {
-                          // A UI real irá puxar do banco via GET, por hora, vamos simular o update no array local
-                          updateInvoiceStatus(inv.id, 'PAGO');
+                          // A UI real irá puxar do banco via GET, por hora, vamos simular o update no array local com o NOVO URL final
+                          updateInvoiceStatus(inv.id, 'PAGO', data.filePath);
                           alert(data.message);
                         } else {
                           alert(`Erro: ${data.error}\n\nDetalhes Técnicos: ${data.details || 'Sem detalhes adidionais'}`);
