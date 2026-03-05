@@ -1,9 +1,9 @@
 import { createClient } from "webdav";
 
 // As chaves devem estar no .env para segurança em produção
-const NEXTCLOUD_URL = process.env.NEXTCLOUD_URL || "http://nextcloud.sccruzeirodosul.org/remote.php/webdav";
+const NEXTCLOUD_URL = process.env.NEXTCLOUD_URL || "http://192.168.15.4:3002/remote.php/webdav";
 const NEXTCLOUD_USERNAME = process.env.NEXTCLOUD_USERNAME || "casaos";
-const NEXTCLOUD_PASSWORD = process.env.NEXTCLOUD_PASSWORD || "RMoQ6-GxD7A-HjEQ5-KiSK7-wQ7SH";
+const NEXTCLOUD_PASSWORD = process.env.NEXTCLOUD_PASSWORD || "casaos";
 
 // Cliente WebDAV global
 export const webdavClient = createClient(NEXTCLOUD_URL, {
