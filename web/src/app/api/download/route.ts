@@ -10,8 +10,9 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Caminho não fornecido' }, { status: 400 });
     }
 
+    let nextcloudPath = "";
+
     try {
-        let nextcloudPath = "";
 
         if (pathQuery.startsWith('[NEXTCLOUD]')) {
             nextcloudPath = pathQuery.replace('[NEXTCLOUD]', '');
@@ -55,6 +56,10 @@ export async function GET(request: Request) {
 
     } catch (error: any) {
         console.error("Erro puxando arquivo do WebDAV:", error);
-        return NextResponse.json({ error: 'Não foi possível encontrar este arquivo na nuvem da escola.' }, { status: 404 });
+        return NextResponse.json({
+            error: 'Não foi possível encontrar este arquivo na nuvem da escola.',
+            details: error.message || String(error),
+            tried_path: nextcloudPath
+        }, { status: 404 });
     }
 }
