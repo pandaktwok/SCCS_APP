@@ -97,7 +97,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                         await webdavClient.moveFile(nextcloudPath, remoteFilePath);
 
                         // Garante que o banco de dados seja atualizado com o URL contendo o novo caminho /historico/
-                        const fullHost = invoice.file_path.split('/remote.php')[0] || "http://192.168.15.4:3002";
+                        const fullHost = invoice.file_path.split('/remote.php')[0] || "https://nextcloud.sccruzeirodosul.org";
                         body.file_path = `${fullHost}/remote.php/dav/files/casaos${remoteFilePath}`;
                         body.pix_receipt_path = body.file_path;
 

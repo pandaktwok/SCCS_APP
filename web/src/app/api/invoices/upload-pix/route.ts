@@ -151,7 +151,7 @@ export async function POST(request: Request) {
         }
 
         // Construir URL Final para o Banco de Dados
-        const fullHost = invoice.file_path.split('/remote.php')[0] || "http://192.168.15.4:3002";
+        const fullHost = invoice.file_path.split('/remote.php')[0] || "https://nextcloud.sccruzeirodosul.org";
         const newDatabaseUrl = `${fullHost}/remote.php/dav/files/casaos${newRemoteFilePath}`;
 
         // 5. Atualizar o Banco de Dados
