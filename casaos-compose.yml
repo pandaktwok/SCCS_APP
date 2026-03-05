@@ -28,6 +28,6 @@ x-casaos:
     en_us: SCCS Financial Module
   title:
     en_us: SCCS Web
-  icon: https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/wallet.svg
+  icon: http://192.168.15.4:3001/sccs_logo.png
   port_map: "3001"
   index: /

@@ -680,7 +680,6 @@ export default function Configuracao() {
                                     )}
                                 </div>
                             )}
-
                             {/* Botão de Envio / Status */}
                             <div className="mt-4 pt-6 border-t border-sccs-border">
                                 {processStatus === "IDLE" || processStatus === "ERROR" ? (
