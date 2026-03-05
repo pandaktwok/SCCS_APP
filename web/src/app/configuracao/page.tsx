@@ -67,8 +67,8 @@ export default function Configuracao() {
             const userData = await userRes.json();
             const settingsData = await settingsRes.json();
 
-            setCategories(catData);
-            setProjects(projData);
+            setCategories(Array.isArray(catData) ? catData : []);
+            setProjects(Array.isArray(projData) ? projData : []);
             setUsers(Array.isArray(userData) ? userData : []);
             if (settingsData && settingsData.companyName) {
                 setCompanyName(settingsData.companyName);
