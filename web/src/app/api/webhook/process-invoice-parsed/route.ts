@@ -4,11 +4,18 @@ import prisma from "@/lib/prisma";
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { category_name, termo, invoice_number, pdf_path, amount } = body;
+        console.log("process-invoice-parsed webhook payload recebido:", body);
+
+        const category_name = body.category_name || body.categoria || body.category;
+        const termo = body.termo || body.project_termo || body.projeto || body.project;
+        const invoice_number = body.invoice_number || body.numero_nota || body.numero;
+        const pdf_path = body.pdf_path || body.file_path || body.file;
+        const amount = body.amount || body.valor || body.total;
+        const supplier = body.supplier || body.fornecedor || body.prestador || body.nome_prestador;
 
         // If data is pre-parsed by n8n regex/deterministic extraction
         if (!category_name || !termo || !invoice_number) {
-            return NextResponse.json({ error: "Missing required deterministic fields" }, { status: 400 });
+            return NextResponse.json({ error: "Missing required deterministic fields", received: body }, { status: 400 });
         }
 
         const categoryRecord = await prisma.categories.findFirst({
@@ -47,13 +54,30 @@ export async function POST(req: Request) {
             }
         }
 
+        let parsedAmount = 0;
+        if (amount) {
+            if (typeof amount === 'string') {
+                if (amount.includes(',')) {
+                    // Se vier formato "2.500,00" ou "2500,00", transformamos em 2500.00
+                    const formatStr = amount.replace(/\./g, '').replace(',', '.');
+                    parsedAmount = parseFloat(formatStr);
+                } else {
+                    // Formato padrão "2500.00"
+                    parsedAmount = parseFloat(amount);
+                }
+            } else {
+                parsedAmount = parseFloat(amount);
+            }
+        }
+
         // 5. Insert invoice
         const invoice = await prisma.invoices.create({
             data: {
                 project_id: projectRecord.id,
                 invoice_number: invoice_number.toString(),
-                amount: amount ? parseFloat(amount) : 0.00,
+                amount: parsedAmount,
                 file_path: pdf_path || "/uploads/unknown.pdf",
+                supplier: supplier ? supplier.toString() : null,
                 status: "A_PAGAR"
             }
         });
