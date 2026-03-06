@@ -81,14 +81,12 @@ export default function Historico() {
         const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}&action=${action}`;
 
         if (action === 'download') {
-            const a = document.createElement('a');
-            a.href = proxyUrl;
-            a.setAttribute('download', '');
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            window.location.href = proxyUrl;
         } else if (action === 'view') {
-            window.open(proxyUrl, '_blank');
+            const newTab = window.open(proxyUrl, '_blank');
+            if (!newTab) {
+                window.location.href = proxyUrl;
+            }
         } else if (action === 'print') {
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';

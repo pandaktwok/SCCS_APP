@@ -176,17 +176,15 @@ export default function Home() {
     const proxyUrl = `/api/download?path=${encodeURIComponent(filePath)}&action=${action}`;
 
     if (action === 'download') {
-      // Força o download criando um link temporário
-      const a = document.createElement('a');
-      a.href = proxyUrl;
-      // o nome do arquivo virá do header do servidor (Content-Disposition)
-      a.setAttribute('download', '');
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      // window.location.href works reliably inside sandboxed iframes (como o painel do CasaOS)
+      // por lidar nativamente com cabeçalhos 'Content-Disposition: attachment'
+      window.location.href = proxyUrl;
     } else if (action === 'view') {
-      // Abre em nova guia para visualizar
-      window.open(proxyUrl, '_blank');
+      // Tenta abrir em nova aba. Se o bloqueador de popups do iframe barrar, abre na mesma janela.
+      const newTab = window.open(proxyUrl, '_blank');
+      if (!newTab) {
+        window.location.href = proxyUrl;
+      }
     } else if (action === 'print') {
       // Abre um iframe oculto para imprimir sem trocar de tela
       const iframe = document.createElement('iframe');
