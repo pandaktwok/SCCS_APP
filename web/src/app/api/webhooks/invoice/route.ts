@@ -26,6 +26,16 @@ export async function POST(request: Request) {
       where: { termo: { equals: finalTermo, mode: "insensitive" } }
     });
 
+    if (!project && finalTermo) {
+      // Tenta encontrar o projeto de forma inteligente extraindo números
+      const justNumbers = finalTermo.toString().replace(/\D/g, '');
+      const allProjects = await prisma.projects.findMany();
+
+      if (justNumbers.length >= 3) {
+        const matchByNumber = allProjects.find(p => p.termo.replace(/\D/g, '') === justNumbers);
+        if (matchByNumber) project = matchByNumber;
+      }
+    }
     // Se o termo não existir, fallback para "T 0000"
     if (!project) {
       project = await prisma.projects.findFirst({
