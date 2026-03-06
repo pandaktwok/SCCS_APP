@@ -34,17 +34,15 @@ export async function POST(request: Request) {
         let nextcloudPath = "";
 
         if (invoice.file_path.startsWith('[NEXTCLOUD]')) {
-            const nextcloudPath = invoice.file_path.replace('[NEXTCLOUD]', '');
-            const { webdavClient } = require('@/lib/webdav');
-            try {
-                originalPdfBuffer = await webdavClient.getFileContents(nextcloudPath, { format: 'binary' }) as Buffer;
-            } catch (e) {
-                return NextResponse.json({ error: 'O PDF original da Nota Fiscal não foi encontrado na nuvem Nextcloud.' }, { status: 404 });
-            }
+            const nextPath = invoice.file_path.replace('[NEXTCLOUD]', '');
+            const authHeader = 'Basic ' + Buffer.from(`${process.env.NEXTCLOUD_USERNAME || 'casaos'}:${process.env.NEXTCLOUD_PASSWORD || 'casaos'}`).toString('base64');
+            const res = await fetch(`http://192.168.15.4:7580/remote.php/webdav${encodeURI(nextPath)}`, { headers: { Authorization: authHeader } });
+            if (!res.ok) return NextResponse.json({ error: 'Falha interna ao puxar o PDF via [NEXTCLOUD] tag.' }, { status: 404 });
+            const arr = await res.arrayBuffer();
+            originalPdfBuffer = Buffer.from(arr);
         } else if (invoice.file_path.startsWith('http://') || invoice.file_path.startsWith('https://')) {
             nextcloudPath = invoice.file_path;
 
-            // Suporta tanto o padrão antigo "remote.php/webdav/" quanto o novo "remote.php/dav/files/usuario/"
             const match = nextcloudPath.match(/remote\.php\/(?:webdav|dav\/files\/[^/]+)\/(.*)/);
             if (match && match[1]) {
                 nextcloudPath = '/' + match[1];
@@ -55,15 +53,18 @@ export async function POST(request: Request) {
                 } catch (e) { }
             }
 
-            // Decodificar URI para caso o n8n tenha salvo com %20 ou outros caracteres
             nextcloudPath = decodeURIComponent(nextcloudPath);
 
-            const { webdavClient } = require('@/lib/webdav');
-            try {
-                originalPdfBuffer = await webdavClient.getFileContents(nextcloudPath, { format: 'binary' }) as Buffer;
-            } catch (e) {
-                return NextResponse.json({ error: 'O PDF original da Nota Fiscal não foi encontrado na nuvem Nextcloud (via URL).' }, { status: 404 });
+            const authHeader = 'Basic ' + Buffer.from(`${process.env.NEXTCLOUD_USERNAME || 'casaos'}:${process.env.NEXTCLOUD_PASSWORD || 'casaos'}`).toString('base64');
+            const fetchUrl = `http://192.168.15.4:7580/remote.php/webdav${encodeURI(nextcloudPath)}`;
+
+            const res = await fetch(fetchUrl, { headers: { Authorization: authHeader } });
+
+            if (!res.ok) {
+                return NextResponse.json({ error: 'O PDF original da Nota Fiscal não foi encontrado na nuvem Nextcloud (via HTTPS externa).' }, { status: 404 });
             }
+            const arr = await res.arrayBuffer();
+            originalPdfBuffer = Buffer.from(arr);
         } else {
             isLocalOriginal = true;
             const publicDir = path.join(process.cwd(), 'public');
