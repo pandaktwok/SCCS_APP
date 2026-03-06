@@ -19,15 +19,32 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: `Category '${category_name}' not found locally` }, { status: 404 });
         }
 
-        const projectRecord = await prisma.projects.findFirst({
+        let projectRecord = await prisma.projects.findFirst({
             where: {
                 category_id: categoryRecord.id,
                 termo: { contains: termo, mode: 'insensitive' }
             }
         });
 
+        // 4b. Robust Fallback: Strip spaces and ignore case, or match digits only
+        if (!projectRecord && termo) {
+            const cleanTermo = termo.replace(/\s+/g, '').toUpperCase();
+            const justNumbers = termo.replace(/\D/g, '');
+
+            const allProjects = await prisma.projects.findMany({ where: { category_id: categoryRecord.id } });
+            projectRecord = allProjects.find(p => p.termo.replace(/\s+/g, '').toUpperCase() === cleanTermo) || null;
+
+            if (!projectRecord && justNumbers.length >= 3) {
+                projectRecord = allProjects.find(p => p.termo.replace(/\D/g, '') === justNumbers) || null;
+            }
+        }
+
         if (!projectRecord) {
-            return NextResponse.json({ error: `Project '${termo}' not found in DB` }, { status: 404 });
+            // Find universal fallback
+            projectRecord = await prisma.projects.findFirst({ where: { termo: 'T 0000' } }) || null;
+            if (!projectRecord) {
+                return NextResponse.json({ error: `Project '${termo}' not found in DB and fallback missing` }, { status: 404 });
+            }
         }
 
         // 5. Insert invoice

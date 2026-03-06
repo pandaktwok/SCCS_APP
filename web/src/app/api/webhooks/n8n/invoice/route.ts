@@ -15,16 +15,35 @@ export async function POST(request: Request) {
             }, { status: 400 });
         }
 
-        // Tenta encontrar o projeto classificado pelo Gemini
+        // Tenta encontrar o projeto classificado pelo Gemini de forma inteligente (para lidar com "T3171", "T-3171", "3171")
         let projectId = null;
         if (project_termo) {
-            const project = await prisma.projects.findFirst({
+            const exactMatch = await prisma.projects.findFirst({
                 where: { termo: project_termo }
             });
-            if (project) {
-                projectId = project.id;
+
+            if (exactMatch) {
+                projectId = exactMatch.id;
             } else {
-                // Se não achar o termo exato, ele vai para a lixeira virtual (Sem Termo) do Front.
+                // Busca todos os projetos e faz match ignorando espaços e cases
+                const cleanTermo = project_termo.replace(/\s+/g, '').toUpperCase();
+                const justNumbers = project_termo.replace(/\D/g, '');
+
+                const allProjects = await prisma.projects.findMany();
+
+                const matchedProject = allProjects.find(p => p.termo.replace(/\s+/g, '').toUpperCase() === cleanTermo);
+
+                if (matchedProject) {
+                    projectId = matchedProject.id;
+                } else if (justNumbers.length >= 3) {
+                    // Tenta validar apenas os números se o AI só enviou "3104"
+                    const matchByNumber = allProjects.find(p => p.termo.replace(/\D/g, '') === justNumbers);
+                    if (matchByNumber) projectId = matchByNumber.id;
+                }
+            }
+
+            if (!projectId) {
+                // Se não achar o termo de forma alguma, ele vai para a lixeira virtual (Sem Termo) do Front.
                 const fallback = await prisma.projects.findFirst({
                     where: { termo: 'T 0000' }
                 });
